@@ -1,32 +1,37 @@
 # LZWCompress.py
-# Compresses an input string using the LZW algorithm
+# Compresses an input file using the LZW algorithm
 
-text = f.open("input","r")
+text = open("input","rb")
 dictionary = {}
-output = f.open("output","w")
+output = open("output","w")
 
 cur_dictval = 0
 cur_string = ""
-cur_stringindex = 0
 next_char = ""
 
 # Construct initial dictionary w/all ASCII characters
-for i in range(0,128):
-    dictionary[chr(i)] = cur_dictval
-    cur_dictval = cur_dictval + 1
+#for i in range(0,128):
+#    dictionary[chr(i)] = cur_dictval
+#    cur_dictval = cur_dictval + 1
 
-cur_string = text[0]
-cur_stringindex = 1
-while cur_stringindex < len(text):
-    next_char = text[cur_stringindex]
-    cur_stringindex = cur_stringindex + 1
+dictionary = {"a":0, "b":1}
+cur_dictval = 2
+
+cur_string = text.read(1)
+print(cur_string)
+next_char = text.read(1)
+print(next_char)
+while not next_char ==  "":
     if (cur_string + next_char) in dictionary:
         cur_string = cur_string + next_char
     else:
-        output = output + str(dictionary[cur_string])
+        output.write(str(dictionary[cur_string]) + "\n")
         dictionary[(cur_string + next_char)] = cur_dictval
         cur_dictval = cur_dictval + 1
         cur_string = next_char
-output = output + str(dictionary[cur_string]) + "\n"
-print(output)
+    next_char = text.read(1)
+output.write(str(dictionary[cur_string]))
 print(dictionary)
+
+text.close()
+output.close()

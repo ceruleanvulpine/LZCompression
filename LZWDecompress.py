@@ -8,12 +8,9 @@ output = open("doutput", "w")
 cur_dictval = 0
 
 # Construct initial dictionary w/all ASCII characters
-#for i in range(0,128):
-#    dictionary[cur_dictval] = chr(i)
-#    cur_dictval = cur_dictval + 1
-
-dictionary = {0:"a", 1:"b"}
-cur_dictval = 2
+for i in range(0,256):
+    dictionary[cur_dictval] = chr(i)
+    cur_dictval = cur_dictval + 1
 
 result = ""
 index = int(indices.readline()[:-1])

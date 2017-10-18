@@ -19,10 +19,11 @@ for i in range(0,256):
     dictionary[i.to_bytes(1,byteorder = sys.byteorder)] = cur_dictval
     cur_dictval = cur_dictval + 1
 
-# Compress to list of indices with LZW algorithm
+# Compress to list of indices with LZW algorithm, building dictionary
+# up to 4096 entries
 cur_string = text.read(1)
 next_char = text.read(1)
-while next_char:
+while next_char and (cur_dictval < 4096):
     print(next_char)
     if (cur_string + next_char) in dictionary:
         cur_string = cur_string + next_char
@@ -32,7 +33,18 @@ while next_char:
         cur_dictval = cur_dictval + 1
         cur_string = next_char
     next_char = text.read(1)
+
+while next_char:
+    print(next_char)
+    if (cur_string + next_char) in dictionary:
+        cur_string = cur_string + next_char
+    else:
+        indices.append(dictionary[cur_string])
+        cur_string = next_char
+    next_char = text.read(1)
+    
 indices.append(dictionary[cur_string])
+print(dictionary)
 
 text.close()
 

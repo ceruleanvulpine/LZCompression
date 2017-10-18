@@ -3,11 +3,12 @@
 
 import heapq as hq
 import sys
+import huff_functions as huff
 
 text = open("dracula1","rb")
 dictionary = {}
 indices = []
-output = open("output","w")
+output = open("output","wb")
 
 cur_dictval = 0
 cur_string = ""
@@ -44,14 +45,38 @@ for index in indices:
    else:
        freqs[index] = freqs[index] + 1
 
-# Build forest of nodes
+# Build forest of nodes of form (frequency, index, left child, right child)
 forest = []
 for node in freqs:
-    hq.heappush(forest, ((freqs[node],node)))
+    hq.heappush(forest, ((freqs[node],node,None,None)))
 
 print(forest)
 
 # Build huffman tree from minheap
-# Encode and write to file
+placeholder_index = -1
+while len(forest) > 1:
+    node1 = hq.heappop(forest)
+    node2 = hq.heappop(forest)
+    hq.heappush(forest, (node1[0] + node2[0], placeholder_index, node1, node2))
+    placeholder_index = placeholder_index - 1
+
+print(forest)
+
+# Build huffman table from huffman tree
+huff_table = huff.buildhufftable(forest)
+print(huff_table)
+
+# Write number of indices
+output.write((cur_dictval - 1).to_bytes(4,byteorder = "big"))
+
+# Write table of frequencies of indices 
+for i in range(0, cur_dictval):
+    if i in freqs:
+        output.write(freqs[i].to_bytes(4, byteorder = "big"))
+    else:
+        output.write((0).to_bytes(4, byteorder = "big"))
+
+# Write encoded indices
+
 
 output.close()

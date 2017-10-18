@@ -1,41 +1,54 @@
 # LZWDecompress.py
 # Decompresses an input file using the LZW algorithm
 
-indices = open("output", "r")
-dictionary = {}
-output = open("doutput", "w")
+import heapq as hq
+import huff_functions as huff
 
-cur_dictval = 0
+text = open("output", "rb")
+output = open("doutput", "wb")
 
-# Construct initial dictionary w/all ASCII characters
-for i in range(0,256):
-    dictionary[cur_dictval] = chr(i)
-    cur_dictval = cur_dictval + 1
+# Read number of indices
+index_count = int.from_bytes(text.read(2), byteorder = "big")
 
-result = ""
-index = int(indices.readline()[:-1])
-previous = dictionary[index]
-result = result + previous
+# Read frequencies
+freqs = {}
+for i in range(0, index_count):
+    num = int.from_bytes(text.read(4), byteorder = "big")
+    if not num == 0:
+        freqs[i] = num
+    
+print(freqs)
 
-current = indices.readline()
-while not current == "":
-    if len(current) == 2:
-        current = current[:-1]
-    cur_index = int(current)
-    if cur_index in dictionary:
-        s = dictionary[cur_index]
-    elif cur_index == len(dictionary):
-        s = previous + previous[0]
+# Build huffman tree from frequencies
+forest = huff.build_forest(freqs)
+huff_tree = huff.buildhufftree(forest)
+
+# Use huffman tree to decode text to indices
+num_codes = huff_tree[0][0]
+indices = []
+indices_decoded = 0
+curr_location = huff_tree[0]
+to_read = int.from_bytes(text.read(1), byteorder = "big")
+bits_read = 0
+
+while indices_decoded < num_codes:
+    if (not curr_location[2]) and (not curr_location[3]):
+        indices.append(curr_location[0])
+        curr_location = huff_tree[0]
+        indices_decoded = indices_decoded + 1
+
+    bit_checker = 1 << (7 - bits_read)
+    if not (to_read & bit_checker):
+        # Then bit in question is a 0 - go left
+        curr_location = curr_location[2]
     else:
-        "There is an error. Cannot proceed."
+        curr_location = curr_location[3]
 
-    result = result + s
-    dictionary[cur_dictval] = previous + s[0]
-    cur_dictval = cur_dictval + 1
-    previous = s
-    current = indices.readline()
+    bits_read = bits_read + 1
+    if bits_read == 8:
+        print(p)
+        to_read = int.from_bytes(p, byteorder = "big")
+        bits_read = 0
 
-print(result)
+print(indices)
 
-indices.close()
-output.close()

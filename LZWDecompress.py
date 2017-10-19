@@ -65,8 +65,8 @@ index = indices[0]
 previous = dictionary[index]
 output.write(previous)
 
-current = indices[0]
-for i in range(0, len(indices)):
+for i in range(1, len(indices)):
+    current = indices[i]
     if current in dictionary:
         s = dictionary[current]
     elif current == len(dictionary):
@@ -87,10 +87,13 @@ for i in range(0, len(indices)):
         entry[j] = previous[j]
     entry[len(previous)] = s[0]
     entry = bytes(entry)
+    print(entry)
     
     dictionary[cur_dictval] = entry
     cur_dictval = cur_dictval + 1
     previous = s
 
+print(dictionary)
+    
 text.close()
 output.close()

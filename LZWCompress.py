@@ -5,7 +5,7 @@ import heapq as hq
 import sys
 import huff_functions as huff
 
-text = open("banana","rb")
+text = open("dracula1","rb")
 dictionary = {}
 indices = []
 output = open("output","wb")

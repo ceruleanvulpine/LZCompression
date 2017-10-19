@@ -5,7 +5,7 @@ import heapq as hq
 import sys
 import huff_functions as huff
 
-text = open("dracula1","rb")
+text = open("banana","rb")
 dictionary = {}
 indices = []
 output = open("output","wb")
@@ -16,7 +16,7 @@ next_char = ""
 
 # Construct initial dictionary w/all possible bytes
 for i in range(0,256):
-    dictionary[i.to_bytes(1,byteorder = sys.byteorder)] = cur_dictval
+    dictionary[i.to_bytes(1,byteorder = "big")] = cur_dictval
     cur_dictval = cur_dictval + 1
 
 # Compress to list of indices with LZW algorithm, building dictionary
@@ -71,7 +71,7 @@ huff_table = huff.buildhufftable(forest)
 print(huff_table)
 
 # Write number of indices
-output.write((cur_dictval - 1).to_bytes(2,byteorder = "big"))
+output.write((cur_dictval).to_bytes(2,byteorder = "big"))
 
 # Write table of frequencies of indices 
 for i in range(0, cur_dictval):

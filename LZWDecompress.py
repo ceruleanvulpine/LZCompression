@@ -81,16 +81,18 @@ for i in range(1, len(indices)):
 
     output.write(s)
 
-    # build "previous + s[0]" to add to dictionary
-    entry = bytearray(len(previous) + 1)
-    for j in range(0, len(previous)):
-        entry[j] = previous[j]
-    entry[len(previous)] = s[0]
-    entry = bytes(entry)
-    print(entry)
+    if cur_dictval < 4096: 
     
-    dictionary[cur_dictval] = entry
-    cur_dictval = cur_dictval + 1
+        # build "previous + s[0]" to add to dictionary
+        entry = bytearray(len(previous) + 1)
+        for j in range(0, len(previous)):
+            entry[j] = previous[j]
+        entry[len(previous)] = s[0]
+        entry = bytes(entry)
+        print(entry)
+        dictionary[cur_dictval] = entry
+        cur_dictval = cur_dictval + 1
+
     previous = s
 
 print(dictionary)

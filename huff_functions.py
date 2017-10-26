@@ -1,3 +1,6 @@
+# huff_functions.py
+# Contains functions for building huffman trees
+
 import heapq as hq
 
 # Build forest of nodes of form (frequency, index, left child, right child)

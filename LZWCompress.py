@@ -5,18 +5,18 @@ import heapq as hq
 import sys
 import huff_functions as huff
 
-text = open("dracula1","rb")
+text = open("img.png","rb")
 dictionary = {}
 indices = []
-output = open("output","wb")
+output = open("img_output","wb")
 
-cur_dictval = 0
-cur_string = ""
+cur_dictval = 0 # Index of next open spot in dictionary
+cur_string = "" 
 next_char = ""
 
 # Construct initial dictionary w/all possible bytes
 for i in range(0,256):
-    dictionary[i.to_bytes(1,byteorder = "big")] = cur_dictval
+    dictionary[i.to_bytes(1,byteorder = sys.byteorder)] = cur_dictval
     cur_dictval = cur_dictval + 1
 
 # Compress to list of indices with LZW algorithm, building dictionary
@@ -24,7 +24,6 @@ for i in range(0,256):
 cur_string = text.read(1)
 next_char = text.read(1)
 while next_char and (cur_dictval < 4096):
-    print(next_char)
     if (cur_string + next_char) in dictionary:
         cur_string = cur_string + next_char
     else:
@@ -36,7 +35,6 @@ while next_char and (cur_dictval < 4096):
 
 # If we reach 4096 entries, stop adding more and just use existing dictionary
 while next_char:
-    print(next_char)
     if (cur_string + next_char) in dictionary:
         cur_string = cur_string + next_char
     else:
@@ -45,7 +43,6 @@ while next_char:
     next_char = text.read(1)
     
 indices.append(dictionary[cur_string])
-print(dictionary)
 
 text.close()
 
@@ -60,27 +57,24 @@ for index in indices:
 
 # Build forest
 forest = huff.build_forest(freqs)
-print(forest)
 
 # Build huffman tree from minheap
 forest = huff.buildhufftree(forest)
-print(forest)
 
 # Build huffman table from huffman tree
 huff_table = huff.buildhufftable(forest)
-print(huff_table)
 
 # Write number of indices
-output.write((cur_dictval).to_bytes(2,byteorder = "big"))
+output.write((cur_dictval).to_bytes(2,byteorder = sys.byteorder))
 
 # Write table of frequencies of indices 
 for i in range(0, cur_dictval):
     if i in freqs:
-        output.write(freqs[i].to_bytes(4, byteorder = "big"))
+        output.write(freqs[i].to_bytes(4, byteorder = sys.byteorder))
     else:
-        output.write((0).to_bytes(4, byteorder = "big"))
+        output.write((0).to_bytes(4, byteorder = sys.byteorder))
 
-# Write encoded indices
+# Write encoded indices, byte-by-byte
 towrite = 0
 bits_written = 0
 for index in indices:
@@ -93,12 +87,12 @@ for index in indices:
 
         # when buffer is full, flush and reset
         if bits_written == 8:
-            output.write(towrite.to_bytes(1, byteorder = "big"))
+            output.write(towrite.to_bytes(1, byteorder = sys.byteorder))
             towrite = 0
             bits_written = 0
 
-# Write partially-full buffer
+# Write partially-full buffer if not empty
 if not bits_written == 0:
-    output.write(towrite.to_bytes(1, byteorder = "big"))
+    output.write(towrite.to_bytes(1, byteorder = sys.byteorder))
 
 output.close()

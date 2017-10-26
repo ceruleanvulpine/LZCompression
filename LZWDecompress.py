@@ -5,8 +5,18 @@ import heapq as hq
 import huff_functions as huff
 import sys
 
-text = open("output", "rb")
-output = open("doutput", "wb")
+if len(sys.argv) == 3:
+    inputname = sys.argv[1]
+    outputname = sys.argv[2]
+elif len(sys.argv) == 2:
+    inputname = sys.argv[1]
+    outputname = sys.argv[1] + "_decompressed"
+else:
+    print("Please provide at least one argument")
+    sys.exit()
+
+text = open(inputname, "rb")
+output = open(outputname, "wb")
 
 # Read number of indices
 index_count = int.from_bytes(text.read(2), byteorder = sys.byteorder)

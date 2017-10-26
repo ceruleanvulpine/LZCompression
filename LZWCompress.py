@@ -5,10 +5,20 @@ import heapq as hq
 import sys
 import huff_functions as huff
 
-text = open("img.png","rb")
+if len(sys.argv) == 3:
+    inputname = sys.argv[1]
+    outputname = sys.argv[2]
+elif len(sys.argv) == 2:
+    inputname = sys.argv[1]
+    outputname = sys.argv[1] + "_compressed"
+else:
+    print("Please provide at least one argument")
+    sys.exit()
+
+text = open(inputname,"rb")
 dictionary = {}
 indices = []
-output = open("img_output","wb")
+output = open(outputname,"wb")
 
 cur_dictval = 0 # Index of next open spot in dictionary
 cur_string = "" 

@@ -38,17 +38,28 @@ while not lookahead_size == 0:
     to_encode = 0
 
     offset = 0
-    for i in range(1, search_size + 1): # FIX: Be careful, use search_size instead of len_search
+    for i in range(1, search_size + 1):
         if search[len(search) - i] == lookahead[to_encode]:
             offset = i
             break
 
-    length = 0
+
+    # FIX: Start search at beginning of search buffer, not end!!
+    length = 1
+    to_encode = to_encode + 1
     if not offset == 0:
-        while search[len(search) - offset + length] == lookahead[to_encode] and not to_encode == lookahead_size: #Account for when encoded string duplicates part of lookahead
+        while search[len(search) - offset + length] == lookahead[to_encode] and not to_encode == lookahead_size and offset > length:
+            print(search[len(search) - offset + length])
+            print(lookahead[to_encode])
             length = length + 1
             to_encode = to_encode + 1
-        print((offset, length, lookahead[to_encode]))
+            print("length: " + str(length) + "/offset: " + str(offset))
+        while lookahead[length-offset] == lookahead[to_encode] and not to_encode == lookahead_size:
+            length = length + 1
+            to_encode = to_encode + 1
+            print("god damn is this an infinite loop")
+        print((offset, length, lookahead[to_encode]))   # Make sure to_encode does not equal lookahead_size now.. Do printing after advancing arrays? 
+        length = length + 1
     else:
         print((0, 0, lookahead[to_encode]))
         length = 1

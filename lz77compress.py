@@ -5,8 +5,8 @@ import heapq as hq
 import sys
 import huff_functions as huff
 
-search_capacity = 8
-lookahead_capacity = 7
+search_capacity = 16
+lookahead_capacity = 15
 search_size = 0
 lookahead_size = 0
 
@@ -34,58 +34,55 @@ while (lookahead_size != lookahead_capacity) and next_char:
 
 # Main compression algorithm loop
 while not lookahead_size == 0:
-
-    to_encode = 0
-
+    to_encode = 0 # TO_ENCODE: first char in lookahead not coded for
     offset = 0
-    for i in range(1, search_size + 1):
-        if search[len(search) - i] == lookahead[to_encode]:
-            offset = i
+    length = 0
+    shift = 0
+      
+    for i in range(len(search) - search_size, len(search)):
+        if search[i] == lookahead[to_encode]:
+            offset = len(search) - i
             break
 
-
-    # FIX: Start search at beginning of search buffer, not end!!
-    length = 1
-    to_encode = to_encode + 1
     if not offset == 0:
-        while search[len(search) - offset + length] == lookahead[to_encode] and not to_encode == lookahead_size and offset > length:
-            print(search[len(search) - offset + length])
-            print(lookahead[to_encode])
-            length = length + 1
-            to_encode = to_encode + 1
-            print("length: " + str(length) + "/offset: " + str(offset))
-        while lookahead[length-offset] == lookahead[to_encode] and not to_encode == lookahead_size:
-            length = length + 1
-            to_encode = to_encode + 1
-            print("god damn is this an infinite loop")
-        print((offset, length, lookahead[to_encode]))   # Make sure to_encode does not equal lookahead_size now.. Do printing after advancing arrays? 
-        length = length + 1
-    else:
-        print((0, 0, lookahead[to_encode]))
         length = 1
+        to_encode = to_encode + 1
+        while search[len(search) - offset + length] == lookahead[to_encode] and not to_encode == lookahead_size and offset > length:
+            to_encode = to_encode + 1
+            length = length + 1
+            # When loop terminates, length = offset or search[len(search) - offset + length] is first char that doesn't match
+        if length == offset:
+            while lookahead[length - offset] == lookahead[to_encode] and not to_encode == lookahead_size:
+                length = length + 1
+                to_encode = to_encode + 1
+            # When loop terminates, length = to_encode = lookahead_size or lookahead[length - offset] is first char to not match
 
+        print(offset, length, lookahead[to_encode]) # Fix - will break if whole lookahead buffer is encoded
+        shift = length + 1
+    else:
+        print(0, 0, lookahead[to_encode])
+        shift = 1
+      
     # Shift lookahead and search buffers
 
-    # Shift search buffer left by [length] chars, and fill from lookahead
-    for i in range(search_capacity - search_size - length, len(search) - length):
-        search[i] = search[i+length]
-    for i in range(0, length):
-        search[len(search) - length + i] = lookahead[i]
+    # Shift search buffer left by [shift] chars, and fill from lookahead
+    for i in range(search_capacity - search_size - shift, len(search) - shift):
+        search[i] = search[i+shift]
+    for i in range(0, shift):
+        search[len(search) - shift + i] = lookahead[i]
     # Increase size of search buffer if not already full
-    search_size = search_size + length
+    search_size = search_size + shift
     if search_size >= search_capacity:
         search_size = search_capacity
 
-    # Shift lookahead buffer left by [length] chars, and fill from text
-    for i in range(0, lookahead_size - length):
-        lookahead[i] = lookahead[i + length]
-    lookahead_size = lookahead_size - length
-    for i in range(0, length):
+    # Shift lookahead buffer left by [shift] chars, and fill from text
+    for i in range(0, lookahead_size - shift):
+        lookahead[i] = lookahead[i + shift]
+    lookahead_size = lookahead_size - shift
+    for i in range(0, shift):
         if next_char:
-            lookahead[len(lookahead) - length + i] = int.from_bytes(next_char, byteorder = "big")
+            lookahead[len(lookahead) - shift + i] = int.from_bytes(next_char, byteorder = "big")
             lookahead_size = lookahead_size + 1
             next_char = text.read(1)
         else:
             break
-               
-output.close()

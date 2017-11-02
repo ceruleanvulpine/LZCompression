@@ -33,7 +33,11 @@ while (lookahead_size != lookahead_capacity) and next_char:
     next_char = text.read(1)
 
 # Main compression algorithm loop
-while not lookahead_size == 0:
+while not lookahead_size <= 0:
+
+    print(search)
+    print(lookahead)
+    
     to_encode = 0 # TO_ENCODE: first char in lookahead not coded for
     offset = 0
     length = 0
@@ -47,17 +51,18 @@ while not lookahead_size == 0:
     if not offset == 0:
         length = 1
         to_encode = to_encode + 1
-        while search[len(search) - offset + length] == lookahead[to_encode] and not to_encode == lookahead_size and offset > length:
+        print("offset: " + str(offset) + "/ ")
+        while offset > length and search[len(search) - offset + length] == lookahead[to_encode] and not to_encode == lookahead_size - 1:
             to_encode = to_encode + 1
             length = length + 1
             # When loop terminates, length = offset or search[len(search) - offset + length] is first char that doesn't match
         if length == offset:
-            while lookahead[length - offset] == lookahead[to_encode] and not to_encode == lookahead_size:
+            while lookahead[length - offset] == lookahead[to_encode] and not to_encode == lookahead_size - 1:
                 length = length + 1
                 to_encode = to_encode + 1
             # When loop terminates, length = to_encode = lookahead_size or lookahead[length - offset] is first char to not match
 
-        print(offset, length, lookahead[to_encode]) # Fix - will break if whole lookahead buffer is encoded
+        print(offset, length, lookahead[to_encode])
         shift = length + 1
     else:
         print(0, 0, lookahead[to_encode])
@@ -66,7 +71,7 @@ while not lookahead_size == 0:
     # Shift lookahead and search buffers
 
     # Shift search buffer left by [shift] chars, and fill from lookahead
-    for i in range(search_capacity - search_size - shift, len(search) - shift):
+    for i in range(0, len(search) - shift):
         search[i] = search[i+shift]
     for i in range(0, shift):
         search[len(search) - shift + i] = lookahead[i]

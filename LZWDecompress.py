@@ -19,12 +19,12 @@ text = open(inputname, "rb")
 output = open(outputname, "wb")
 
 # Read number of indices
-index_count = int.from_bytes(text.read(2), byteorder = sys.byteorder)
+index_count = int.from_bytes(text.read(2), byteorder = "big")
 
 # Read frequencies
 freqs = {}
 for i in range(0, index_count):
-    num = int.from_bytes(text.read(4), byteorder = sys.byteorder)
+    num = int.from_bytes(text.read(4), byteorder = "big")
     if not num == 0:
         freqs[i] = num
         
@@ -37,7 +37,7 @@ num_codes = huff_tree[0][0]
 indices = []
 indices_decoded = 0
 curr_location = huff_tree[0]
-to_read = int.from_bytes(text.read(1), byteorder = sys.byteorder)
+to_read = int.from_bytes(text.read(1), byteorder = "big")
 bits_read = 0
 
 while indices_decoded < num_codes:
@@ -55,7 +55,7 @@ while indices_decoded < num_codes:
 
     bits_read = bits_read + 1
     if bits_read == 8:
-        to_read = int.from_bytes(text.read(1), byteorder = sys.byteorder)
+        to_read = int.from_bytes(text.read(1), byteorder = "big")
         bits_read = 0
 
 # Now use LZW decompression algorithm to decode list of indices
@@ -63,7 +63,7 @@ while indices_decoded < num_codes:
 dictionary = {}
 cur_dictval = 0
 for i in range(0,256):
-    dictionary[cur_dictval] = i.to_bytes(1,byteorder = sys.byteorder)
+    dictionary[cur_dictval] = i.to_bytes(1,byteorder = "big")
     cur_dictval = cur_dictval + 1
 
 index = indices[0]

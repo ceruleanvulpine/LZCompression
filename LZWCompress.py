@@ -26,7 +26,7 @@ next_char = ""
 
 # Construct initial dictionary w/all possible bytes
 for i in range(0,256):
-    dictionary[i.to_bytes(1,byteorder = sys.byteorder)] = cur_dictval
+    dictionary[i.to_bytes(1,byteorder = "big")] = cur_dictval
     cur_dictval = cur_dictval + 1
 
 # Compress to list of indices with LZW algorithm, building dictionary
@@ -75,14 +75,14 @@ forest = huff.buildhufftree(forest)
 huff_table = huff.buildhufftable(forest)
 
 # Write number of indices
-output.write((cur_dictval).to_bytes(2,byteorder = sys.byteorder))
+output.write((cur_dictval).to_bytes(2,byteorder = "big"))
 
 # Write table of frequencies of indices 
 for i in range(0, cur_dictval):
     if i in freqs:
-        output.write(freqs[i].to_bytes(4, byteorder = sys.byteorder))
+        output.write(freqs[i].to_bytes(4, byteorder = "big"))
     else:
-        output.write((0).to_bytes(4, byteorder = sys.byteorder))
+        output.write((0).to_bytes(4, byteorder = "big"))
 
 # Write encoded indices, byte-by-byte
 towrite = 0
@@ -97,12 +97,12 @@ for index in indices:
 
         # when buffer is full, flush and reset
         if bits_written == 8:
-            output.write(towrite.to_bytes(1, byteorder = sys.byteorder))
+            output.write(towrite.to_bytes(1, byteorder = "big"))
             towrite = 0
             bits_written = 0
 
 # Write partially-full buffer if not empty
 if not bits_written == 0:
-    output.write(towrite.to_bytes(1, byteorder = sys.byteorder))
+    output.write(towrite.to_bytes(1, byteorder = "big"))
 
 output.close()

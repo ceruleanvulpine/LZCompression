@@ -1,12 +1,14 @@
-# LZWCompress.py
-# Compresses an input file using the LZW algorithm
+# LZ77Compress.py
+# Compresses an input file using the LZ77 algorithm
+# Then compresses length/literals and distances w/separate huffman trees
 
 import heapq as hq
 import sys
 import huff_functions as huff
 
-search_capacity = 16
-lookahead_capacity = 15
+search_capacity = 255
+lookahead_capacity = 255
+distance_bits = 8
 search_size = 0
 lookahead_size = 0
 
@@ -24,6 +26,8 @@ text = open(inputname,"rb")
 search = bytearray(search_capacity)
 lookahead = bytearray(lookahead_capacity)
 indices = []
+output = open(outputname,"wb")
+to_write = bytearray(8)
 
 # Fill lookahead buffer with first [lookahead_capacity] chars
 next_char = text.read(1)
@@ -62,10 +66,19 @@ while not lookahead_size <= 0:
                 to_encode = to_encode + 1
             # When loop terminates, length = to_encode = lookahead_size or lookahead[length - offset] is first char to not match
 
-        print(offset, length, lookahead[to_encode])
+        # Write offset and length in 1 byte each, and next char in one byte NOTE: change this for possible smaller buffer? 
+        output.write(offset.to_bytes(1, byteorder = "big"))
+        output.write(length.to_bytes(1, byteorder = "big"))
+        output.write(lookahead[to_encode].to_bytes(1, byteorder = "big"))
+            
+        #print(offset, length, lookahead[to_encode])
         shift = length + 1
     else:
-        print(0, 0, lookahead[to_encode])
+
+        output.write(bytes(1))
+        output.write(bytes(1))
+        output.write(lookahead[to_encode].to_bytes(1, byteorder = "big"))
+        #print(0, 0, lookahead[to_encode])
         shift = 1
       
     # Shift lookahead and search buffers

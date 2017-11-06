@@ -1,4 +1,4 @@
-# LZ77Compress.py
+# plain_LZ77Compress.py
 # Compresses an input file using the LZ77 algorithm (doesn't actually compress, because no further encoding)
 
 import heapq as hq
@@ -24,7 +24,6 @@ else:
 text = open(inputname,"rb")
 search = bytearray(search_capacity)
 lookahead = bytearray(lookahead_capacity)
-indices = []
 output = open(outputname,"wb")
 to_write = bytearray(8)
 

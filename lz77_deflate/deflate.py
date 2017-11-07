@@ -10,6 +10,7 @@ lookahead_capacity = 258
 search_size = 0
 lookahead_size = 0
 
+# Read arguments from command line to determine file to decompress and where to decompress it to
 if len(sys.argv) == 3:
     inputname = sys.argv[1]
     outputname = sys.argv[2]
@@ -20,11 +21,12 @@ else:
     print("Please provide at least one argument")
     sys.exit()
 
+# Setup for lookahead and search buffers
 text = open(inputname, "rb")
 search = bytearray(search_capacity) # NOTE: This is a dumb inefficient way to do this, replace with hash chained table
 lookahead = bytearray(lookahead_capacity)
 
-# Now use LZ77 algorithm to compute lists of output, before compressing
+# Now use LZ77 algorithm to compute three lists: offsets, lengths and next_chars; will be compressed and sent in triples
 offsets = []
 lengths = []
 next_chars = []
@@ -63,7 +65,7 @@ while not lookahead_size <= 0:
             # When loop terminates, length = to_encode = lookahead_size or lookahead[length - offset] is first char to not match
 
         # Write offset and length in 1 byte each, and next char in one byte NOTE: change this for possible smaller buffer?
-        # NOTE: hacky fix to not use matches of len 1 and 2, fix with hash chaining
+        # NOTE: this is a hacky fix to not use matches of len 1 and 2, fix with hash chaining 3-length strings
         if length == 1 or length == 2:
             offsets.append(0)
             lengths.append(0)
@@ -106,6 +108,7 @@ while not lookahead_size <= 0:
             break
 
 
+# Open output stream; towrite is a one-bye buffer which fills with the bits we want to be written as bits_written counts up to eight
 output = open(outputname, "wb")
 towrite = 0
 bits_written = 0
@@ -116,12 +119,9 @@ bit_flicker = 6 << 5
 towrite = towrite | bit_flicker
 bits_written = 3
 
-# Now compress the output in offsets, lengths, and next_chars, using huffman coding
-# One tree is made for lengths and literals, and another for offsets
-
-# Constructing length and literal tree
-# Codes 0-255 are literals; 256 is end of block; 257-285 represent lengths (some represent ranges of lengths, with extra bits after symbol)
-# Find frequencies of the things represented by these codes:
+# Constructing huffman tree for lengths and literals
+# First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 reprsent lengths (some are ranges of lengths, with extra bits after symbol)
+# NOTE: Not sure this program actually uses 256 anywhere? Fix that 
 ll_frequencies = {}
 for nc in next_chars:
     if nc in ll_frequencies:
@@ -181,16 +181,12 @@ for l in lengths:
     else:
         ll_frequencies[code] = 1
 
-print(ll_frequencies)
-
+# Build generic huffman tree from frequencies
 ll_forest = huff.build_forest(ll_frequencies)
-print(ll_forest)
 ll_tree = huff.buildhufftree(ll_forest)
-print(ll_tree)
-ll_codelengths = huff.getcodelengths(ll_tree)
-print(ll_codelengths)
 
-# Sort dict of code lengths into a nice sorted list
+# Get ordered list of code lengths to create canonical huffman code 
+ll_codelengths = huff.getcodelengths(ll_tree)
 ll_codelengths_list = []
 for i in range(0, 286):
     if i in ll_codelengths:
@@ -198,33 +194,52 @@ for i in range(0, 286):
     else:
         ll_codelengths_list.append(0)
 
-print(ll_codelengths_list)
-
-# Output compressed code length information for length/literal tree
-
+# Construct list of code length codes for canonical huffman tree for lengths/literals
+# See deflate docs for length encoding scheme
 prev = -1
 repeat_length = 0
+codetowrite = 0
+codelengthcodes = []
 for length in ll_codelengths_list:
-
+    
     # If the code length is a repeat, increase the repeat length
     # If we have reached the limit of repeat size, output code for repeat section
     if prev == length:
         repeat_length = repeat_length + 1
         if 1 <= prev <= 15 and repeat_length == 6:
-            output.write("repeat + encoded repeat length")
+            # Write repeat code (16) plus code for 6 repeats (3)
+            codelengthcodes.append(16)
+            codelengthcodes.append(3)
             repeat_length = 0
         elif prev == 0 and repeat_length == 138:
-            output.write("zero repeat + encoded repeat length")
+            # Write long zero repeat code (18) plus code for 138 repeats (127)
+            codelengthcodes.append(18)
+            codelengthcodes.append(127)
             repeat_length = 0
 
     # If we have changed code lengths, output code for last repeat section if
     # there is one, then output code for new character
     else:
         if repeat_length != 0:
-             output.write("repeat code + encoded repeat length")
+            # NOTE: TO FIX: If repeat length is 1 or 2, just output code more times
+            if prev == 0:
+                if 3 <= repeat_length <= 10:
+                    codelengthcodes.append(17)
+                    codelengthcodes.append(repeat_length - 3)
+                elif 11 <= repeat_length <= 138:
+                    codelengthcodes.append(18)
+                    codelengthcodes.append(repeat_length - 11)
+            else:
+                if 3 <= repeat_length <= 6:
+                    codelengthcodes.append(16)
+                    codelengthcodes.append(repeat_length - 3)
              repeat_length = 0
-        output.write(length)
+        codelengthcodes.append(length)
         prev = length
+
+# Compress THOSE code length codes with ANOTHER canonical huffman code and output
+
+    
 
 # Construct canonical huffman code for length/literal tree
 

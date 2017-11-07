@@ -47,3 +47,44 @@ def getcodelengths_rec(node, cur_length, len_table):
     else:
         getcodelengths_rec(node[2], cur_length + 1, len_table)
         getcodelengths_rec(node[3], cur_length + 1, len_table)
+
+# Given a symbol set list and a list of code lengths,
+# constructs a dictionary containing the corresponding canonical huffman code
+# Algorithm from DEFLATE docs
+def makecanonical(symbols, lengths):
+
+    max_length = 0
+    for i in range(0, len(lengths)):
+        if lengths[i] > max_length:
+            max_length = lengths[i]
+
+    bitlength_counts = []
+    for i in range(0, max_length):
+        bitlength_counts.append(0)
+
+
+    # Count number of codes with each bit length
+    for i in range(0, len(lengths)):
+        bitlength_counts[i] = bitlength_counts[i] + 1
+
+    # Find numerical value of smallest code of each bit length &
+    # store them in next_code
+    bitlength_counts[0] = 0
+    code = 0
+
+    next_code = []
+    next_code.append(0)
+    for bits in range(1, max_length + 1):
+        code = (code + bitlength_counts[bits-1]) << 1
+        next_code.append(code)
+
+    canon_codes = {}
+    for i in range(0, len(symbols)):
+        if lengths[i] != 0:
+            canon_codes[symbols[i]] = next_code[lengths[i]]
+            next_code[lengths[i]] = next_code[lengths[i]] + 1
+
+    return canon_codes
+
+
+    

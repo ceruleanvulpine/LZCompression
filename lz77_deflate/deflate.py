@@ -173,7 +173,7 @@ for l in lengths:
         code = 283
     elif l >= 227 and l <= 257:
         code = 284
-    elif l == 285:
+    elif l == 258:
         code = 285
 
     if code in ll_frequencies:
@@ -189,3 +189,48 @@ ll_tree = huff.buildhufftree(ll_forest)
 print(ll_tree)
 ll_codelengths = huff.getcodelengths(ll_tree)
 print(ll_codelengths)
+
+# Sort dict of code lengths into a nice sorted list
+ll_codelengths_list = []
+for i in range(0, 286):
+    if i in ll_codelengths:
+        ll_codelengths_list.append(ll_codelengths[i])
+    else:
+        ll_codelengths_list.append(0)
+
+print(ll_codelengths_list)
+
+# Output compressed code length information for length/literal tree
+
+prev = -1
+repeat_length = 0
+for length in ll_codelengths_list:
+
+    # If the code length is a repeat, increase the repeat length
+    # If we have reached the limit of repeat size, output code for repeat section
+    if prev == length:
+        repeat_length = repeat_length + 1
+        if 1 <= prev <= 15 and repeat_length == 6:
+            output.write("repeat + encoded repeat length")
+            repeat_length = 0
+        elif prev == 0 and repeat_length == 138:
+            output.write("zero repeat + encoded repeat length")
+            repeat_length = 0
+
+    # If we have changed code lengths, output code for last repeat section if
+    # there is one, then output code for new character
+    else:
+        if repeat_length != 0:
+             output.write("repeat code + encoded repeat length")
+             repeat_length = 0
+        output.write(length)
+        prev = length
+
+# Construct canonical huffman code for length/literal tree
+
+# Repeat this all for distances
+
+# Output compressed data
+
+
+

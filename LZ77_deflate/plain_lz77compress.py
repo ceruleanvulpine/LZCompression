@@ -25,7 +25,6 @@ text = open(inputname,"rb")
 search = bytearray(search_capacity)
 lookahead = bytearray(lookahead_capacity)
 output = open(outputname,"wb")
-to_write = bytearray(8)
 
 # Fill lookahead buffer with first [lookahead_capacity] chars
 next_char = text.read(1)

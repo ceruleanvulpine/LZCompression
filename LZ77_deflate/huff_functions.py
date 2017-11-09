@@ -54,18 +54,19 @@ def getcodelengths_rec(node, cur_length, len_table):
 def makecanonical(symbols, lengths):
 
     max_length = 0
-    for i in range(0, len(lengths)):
-        if lengths[i] > max_length:
-            max_length = lengths[i]
+    for node in lengths:
+        length = lengths[node]
+        if length > max_length:
+            max_length = length
 
     bitlength_counts = []
-    for i in range(0, max_length):
+    for i in range(0, max_length + 1):
         bitlength_counts.append(0)
 
-
     # Count number of codes with each bit length
-    for i in range(0, len(lengths)):
-        bitlength_counts[i] = bitlength_counts[i] + 1
+    for node in lengths:
+        length = lengths[node]
+        bitlength_counts[length] = bitlength_counts[length] + 1
 
     # Find numerical value of smallest code of each bit length &
     # store them in next_code
@@ -79,10 +80,10 @@ def makecanonical(symbols, lengths):
         next_code.append(code)
 
     canon_codes = {}
-    for i in range(0, len(symbols)):
-        if lengths[i] != 0:
-            canon_codes[symbols[i]] = next_code[lengths[i]]
-            next_code[lengths[i]] = next_code[lengths[i]] + 1
+    for symbol in symbols:
+        if lengths[symbol] != 0:
+            canon_codes[symbol] = next_code[lengths[symbol]]
+            next_code[lengths[symbol]] = next_code[lengths[symbol]] + 1
 
     return canon_codes
 

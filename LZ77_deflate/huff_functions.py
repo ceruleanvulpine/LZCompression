@@ -48,25 +48,34 @@ def getcodelengths_rec(node, cur_length, len_table):
         getcodelengths_rec(node[2], cur_length + 1, len_table)
         getcodelengths_rec(node[3], cur_length + 1, len_table)
 
-# Given a symbol set list and a list of code lengths,
+# Given an ordered symbol set list and a dictionary of symbol/code length pairs,
+# construct a list of code lengths w/same order as symbol set
+def lengthslist(symbols, lengths):
+    llist = []
+    for symbol in symbols:
+        if symbol in lengths:
+            llist.append(lengths[symbol])
+        else:
+            llist.append(0)
+    return llist
+    
+# Given an ordered symbol set list and a list of code lengths,
 # constructs a dictionary containing the corresponding canonical huffman code
 # Algorithm from DEFLATE docs
 def makecanonical(symbols, lengths):
 
     max_length = 0
-    for node in lengths:
-        length = lengths[node]
-        if length > max_length:
-            max_length = length
+    for i in range(0, len(lengths)):
+        if lengths[i] > max_length:
+            max_length = lengths[i]
 
     bitlength_counts = []
     for i in range(0, max_length + 1):
         bitlength_counts.append(0)
 
     # Count number of codes with each bit length
-    for node in lengths:
-        length = lengths[node]
-        bitlength_counts[length] = bitlength_counts[length] + 1
+    for i in range(0, len(lengths)):
+        bitlength_counts[lengths[i]] = bitlength_counts[lengths[i]] + 1
 
     # Find numerical value of smallest code of each bit length &
     # store them in next_code
@@ -80,12 +89,10 @@ def makecanonical(symbols, lengths):
         next_code.append(code)
 
     canon_codes = {}
-    for symbol in symbols:
-        if lengths[symbol] != 0:
-            canon_codes[symbol] = next_code[lengths[symbol]]
-            next_code[lengths[symbol]] = next_code[lengths[symbol]] + 1
+    for i in range(0, len(symbols)):
+        if lengths[i] != 0:
+            canon_codes[symbols[i]] = next_code[lengths[i]]
+            next_code[lengths[i]] = next_code[lengths[i]] + 1
 
     return canon_codes
-
-
     

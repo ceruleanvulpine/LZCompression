@@ -10,7 +10,7 @@ lookahead_capacity = 258
 search_size = 0
 lookahead_size = 0
 
-# Read arguments from command line to determine file to decompress and where to decompress it to
+# Read arguments from command line to determine which file to decompress and where to 
 if len(sys.argv) == 3:
     inputname = sys.argv[1]
     outputname = sys.argv[2]
@@ -41,16 +41,18 @@ while (lookahead_size != lookahead_capacity) and next_char:
 # Main LZ77 loop
 while not lookahead_size <= 0:
     
-    to_encode = 0 # TO_ENCODE: first char in lookahead not coded for
+    to_encode = 0 # first char in lookahead buffer which is not yet coded for
     offset = 0
     length = 0
     shift = 0
-      
-    for i in range(len(search) - search_size, len(search)):
-        if search[i] == lookahead[to_encode]:
-            offset = len(search) - i
-            break
 
+    # Search backwards from end of search buffer for a matching character
+    for i in range(1, search_size + 1):
+        if search[len(search) - i] == lookahead[to_encode]:
+            offset = i
+            break
+        
+    # Calculate length of match
     if not offset == 0:
         length = 1
         to_encode = to_encode + 1
@@ -58,13 +60,14 @@ while not lookahead_size <= 0:
             to_encode = to_encode + 1
             length = length + 1
             # When loop terminates, length = offset or search[len(search) - offset + length] is first char that doesn't match
+        # Continue search for match into lookahead buffer if necessary
         if length == offset:
             while lookahead[length - offset] == lookahead[to_encode] and not to_encode == lookahead_size - 1:
                 length = length + 1
                 to_encode = to_encode + 1
             # When loop terminates, length = to_encode = lookahead_size or lookahead[length - offset] is first char to not match
 
-        # Write offset and length in 1 byte each, and next char in one byte NOTE: change this for possible smaller buffer?
+        # Add offset, length, char information to lists for later encoding
         # NOTE: this is a hacky fix to not use matches of len 1 and 2, fix with hash chaining 3-length strings
         if length == 1 or length == 2:
             offsets.append(0)
@@ -107,8 +110,12 @@ while not lookahead_size <= 0:
         else:
             break
 
-
-# Open output stream; towrite is a one-bye buffer which fills with the bits we want to be written as bits_written counts up to eight
+# Write an end-of-block character (there will only be one of these right now since it's all in one block)
+offsets.append(0)
+lengths.append(0)
+next_chars.append(256)
+        
+# Open output stream; towrite is a one-byte buffer, bits_written keeps track of how much of it is full
 output = open(outputname, "wb")
 towrite = 0
 bits_written = 0
@@ -120,8 +127,7 @@ towrite = towrite | bit_flicker
 bits_written = 3
 
 # Constructing huffman tree for lengths and literals
-# First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 reprsent lengths (some are ranges of lengths, with extra bits after symbol)
-# NOTE: Not sure this program actually uses 256 anywhere? Fix that 
+# First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 represent lengths (some are ranges of lengths, with extra bits to be placed after symbol)
 ll_frequencies = {}
 for nc in next_chars:
     if nc in ll_frequencies:
@@ -187,12 +193,9 @@ ll_tree = huff.buildhufftree(ll_forest)
 
 # Get ordered list of code lengths to create canonical huffman code 
 ll_codelengths = huff.getcodelengths(ll_tree)
-ll_codelengths_list = []
-for i in range(0, 286):
-    if i in ll_codelengths:
-        ll_codelengths_list.append(ll_codelengths[i])
-    else:
-        ll_codelengths_list.append(0)
+ll_codelengths_list = huff.lengthslist(range(0, 286), ll_codelengths)
+print(ll_codelengths_list)
+sys.exit()
 
 # Construct list of code length codes for canonical huffman tree for lengths/literals
 # See deflate docs for length encoding scheme
@@ -233,7 +236,7 @@ for length in ll_codelengths_list:
                 if 3 <= repeat_length <= 6:
                     codelengthcodes.append(16)
                     codelengthcodes.append(repeat_length - 3)
-             repeat_length = 0
+            repeat_length = 0
         codelengthcodes.append(length)
         prev = length
 

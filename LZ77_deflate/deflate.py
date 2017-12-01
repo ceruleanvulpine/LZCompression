@@ -1,9 +1,53 @@
 # DEFLATE.py
 # Compresses files with a DEFLATE-ish algorithm. (Working towards compliance.)
+# NOTE: output NUMBER of length/literal/etc values before outputting huffman trees
 
 import heapq as hq
 import sys
 import huff_functions as huff
+
+# -------------------------------------------------------   
+# Function that takes care of buffer for writing individual bits to file.
+# NOTE: remember to flush buffer before closing
+to_write = 0
+bits_written = 0
+
+def writebits(n):
+    print(n)
+    global to_write
+    global bits_written
+    if n == 0:
+        bits_written = bits_written + 1
+    else:
+
+        power = 1
+        while power * 2 <= n:
+            power = power * 2
+        
+        while power >= 1:
+            if n - power >= 0:
+                bit = 1
+                n = n - power
+            else:
+                bit = 0
+                
+            power = power / 2
+
+            bit_flicker = bit << (7-bits_written)
+            to_write = to_write | bit_flicker
+            bits_written = bits_written + 1
+
+            if bits_written == 8:
+                output.write(to_write.to_bytes(1, byteorder = "big"))
+                towrite = 0
+                bits_written = 0
+            
+    if bits_written == 8:
+        output.write(to_write.to_bytes(1, byteorder = "big"))
+        towrite = 0
+        bits_written = 0 
+            
+# -------------------------------------------------------
 
 search_capacity = 32000
 search_size = 0
@@ -180,17 +224,6 @@ next_chars.append(256)
 print(str(offsets))
 print(str(lengths))
 print(str(next_chars))
-        
-# Open output stream; towrite is a one-byte buffer, bits_written keeps track of how much of it is full
-output = open(outputname, "wb")
-towrite = 0
-bits_written = 0
-
-# Currently we are putting all data in one dynamically compressed block
-# So write BFINAL = 1 and BTYPE = 10 to the buffer, to signify that it is final and dynamically compressed
-bit_flicker = 6 << 5
-towrite = towrite | bit_flicker
-bits_written = 3
 
 # Constructing huffman tree for lengths and literals
 # First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 represent lengths (some are ranges of lengths, with extra bits to be placed after symbol)
@@ -260,6 +293,7 @@ ll_tree = huff.buildhufftree(ll_forest)
 # Get ordered list of code lengths to create canonical huffman code 
 ll_codelengths = huff.getcodelengths(ll_tree)
 ll_codelengths_list = huff.lengthslist(range(0, 286), ll_codelengths)
+ll_canonical = makecanonical(range(0, 286), ll_codelengths_list))
 print(ll_codelengths_list)
 
 # Construct list of code length codes for canonical huffman tree for lengths/literals
@@ -267,6 +301,7 @@ print(ll_codelengths_list)
 prev = -1
 repeat_length = 0
 codelengthcodes = []
+repeatbits = []
 for length in ll_codelengths_list:
 
     #print("*\nprev: " + str(prev))
@@ -279,12 +314,12 @@ for length in ll_codelengths_list:
         if 1 <= prev <= 15 and repeat_length == 6:
             # Write repeat code (16) plus code for 6 repeats (3)
             codelengthcodes.append(16)
-            codelengthcodes.append(3)
+            repeatbits.append(3)
             repeat_length = 0
         elif prev == 0 and repeat_length == 138:
             # Write long zero repeat code (18) plus code for 138 repeats (127)
             codelengthcodes.append(18)
-            codelengthcodes.append(127)
+            repeatbits.append(127)
             repeat_length = 0
 
     # If we have changed code lengths, output code for last repeat section if
@@ -294,14 +329,14 @@ for length in ll_codelengths_list:
             if prev == 0:
                 if 3 <= repeat_length <= 10:
                     codelengthcodes.append(17)
-                    codelengthcodes.append(repeat_length - 3)
+                    repeatbits.append(repeat_length - 3)
                 elif 11 <= repeat_length <= 138:
                     codelengthcodes.append(18)
-                    codelengthcodes.append(repeat_length - 11)
+                    repeatbits.append(repeat_length - 11)
             else:
                 if 3 <= repeat_length <= 6:
                     codelengthcodes.append(16)
-                    codelengthcodes.append(repeat_length - 3)
+                    repeatbits.append(repeat_length - 3)
 
         if repeat_length == 1:
             codelengthcodes.append(prev)
@@ -322,14 +357,14 @@ if not repeat_length == 0:
         if prev == 0:
             if 3 <= repeat_length <= 10:
                 codelengthcodes.append(17)
-                codelengthcodes.append(repeat_length - 3)
+                repeatbits.append(repeat_length - 3)
             elif 11 <= repeat_length <= 138:
                 codelengthcodes.append(18)
-                codelengthcodes.append(repeat_length - 11)
+                repeatbits.append(repeat_length - 11)
         else:
             if 3 <= repeat_length <= 6:
                 codelengthcodes.append(16)
-                codelengthcodes.append(repeat_length - 3)
+                repeatbits.append(repeat_length - 3)
 
     if repeat_length == 1:
         codelengthcodes.append(prev)
@@ -340,10 +375,45 @@ if not repeat_length == 0:
 print(codelengthcodes)
 
 # Compress THOSE code length codes with ANOTHER canonical huffman code and output
+# First collect frequencies
+clc_frequencies = {}
+for code in codelengthcodes:
+    if code in clc_frequencies:
+        clc_frequencies[code] = clc_frequencies[code] + 1
+    else:
+        clc_frequencies[code] = 1
 
-    
+clc_forest = huff.build_forest(clc_frequencies)
+clc_tree = huff.buildhufftree(clc_forest)
 
-# Construct canonical huffman code for length/literal tree
+# Get ordered list of code lengths to create canonical huffman code 
+clc_codelengths = huff.getcodelengths(clc_tree)
+clc_codelengths_list = huff.lengthslist(range(0, 19), clc_codelengths)
+clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
+print(clc_canonical)
+
+# Open output stream; towrite is a one-byte buffer, bits_written keeps track of how much of it is full
+output = open(outputname, "wb")
+
+# Currently we are putting all data in one dynamically compressed block
+# So write BFINAL = 1 and BTYPE = 0b10 to the buffer, to signify that it is final and dynamically compressed
+writebits(6)
+
+# Output code lengths for clc tree in this weird order...
+for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
+    writebits(clc_codelengths_list[i])
+
+# Then output clcs using canonical huffman code
+extrabits_index = 0
+for code in codelengthcodes:
+    writebits(clc_canonical[code])
+    if code >= 16:
+        writebits(repeatbits[extrabits_index])
+        i = i + 1
+
+# Then output literal/lengths compressed!!!
+# .. Ugh have to get list of literals/lengths first, with extra bits to distinguish same-code ones
+# And actually supposed to put out code lengths for distance first
 
 # Repeat this all for distances
 

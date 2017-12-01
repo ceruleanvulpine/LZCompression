@@ -76,7 +76,7 @@ while not lookahead_size <= 0:
         else:
 
             print("Attempting to send " + next_three + " as match")
-            print(str(search_buffer))
+            # print(str(search_buffer))
             print(str(lookahead))
 
             # Look through all matches for the longest recent one
@@ -261,15 +261,16 @@ ll_tree = huff.buildhufftree(ll_forest)
 ll_codelengths = huff.getcodelengths(ll_tree)
 ll_codelengths_list = huff.lengthslist(range(0, 286), ll_codelengths)
 print(ll_codelengths_list)
-sys.exit()
 
 # Construct list of code length codes for canonical huffman tree for lengths/literals
 # See deflate docs for length encoding scheme
 prev = -1
 repeat_length = 0
-codetowrite = 0
 codelengthcodes = []
 for length in ll_codelengths_list:
+
+    #print("*\nprev: " + str(prev))
+    #print("rptlen: " + str(repeat_length))
     
     # If the code length is a repeat, increase the repeat length
     # If we have reached the limit of repeat size, output code for repeat section
@@ -289,8 +290,7 @@ for length in ll_codelengths_list:
     # If we have changed code lengths, output code for last repeat section if
     # there is one, then output code for new character
     else:
-        if repeat_length != 0:
-            # NOTE: TO FIX: If repeat length is 1 or 2, just output code more times
+        if repeat_length > 2:
             if prev == 0:
                 if 3 <= repeat_length <= 10:
                     codelengthcodes.append(17)
@@ -302,9 +302,42 @@ for length in ll_codelengths_list:
                 if 3 <= repeat_length <= 6:
                     codelengthcodes.append(16)
                     codelengthcodes.append(repeat_length - 3)
-            repeat_length = 0
+
+        if repeat_length == 1:
+            codelengthcodes.append(prev)
+        if repeat_length == 2:
+            codelengthcodes.append(prev)
+            codelengthcodes.append(prev)
+
+        repeat_length = 0
         codelengthcodes.append(length)
         prev = length
+
+    #print(length)
+    #print(codelengthcodes)
+
+# Account for possible unprinted last repeat
+if not repeat_length == 0:
+    if repeat_length > 2:
+        if prev == 0:
+            if 3 <= repeat_length <= 10:
+                codelengthcodes.append(17)
+                codelengthcodes.append(repeat_length - 3)
+            elif 11 <= repeat_length <= 138:
+                codelengthcodes.append(18)
+                codelengthcodes.append(repeat_length - 11)
+        else:
+            if 3 <= repeat_length <= 6:
+                codelengthcodes.append(16)
+                codelengthcodes.append(repeat_length - 3)
+
+    if repeat_length == 1:
+        codelengthcodes.append(prev)
+    if repeat_length == 2:
+        codelengthcodes.append(prev)
+        codelengthcodes.append(prev)
+
+print(codelengthcodes)
 
 # Compress THOSE code length codes with ANOTHER canonical huffman code and output
 

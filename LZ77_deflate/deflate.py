@@ -1,6 +1,7 @@
 # DEFLATE.py
 # Compresses files with a DEFLATE-ish algorithm. (Working towards compliance.)
 # NOTE: output NUMBER of length/literal/etc values before outputting huffman trees
+# NOTE: rework length/distance -> code to utilize the pattern ? 
 
 import heapq as hq
 import sys
@@ -189,7 +190,7 @@ while not lookahead_size <= 0:
     if search_size >= search_capacity:
         search_size = search_capacity
 
-    # Get and save three-strings up to one that will be examined in next loop
+    # Get and save three-strings up to the one that will be examined in next loop
     for i in range(1, shift):
         if i <= lookahead_size - 3:
             next_three = chr(lookahead[i]) + chr(lookahead[i+1]) + chr(lookahead[i+2]);
@@ -227,7 +228,11 @@ print(str(next_chars))
 
 # Constructing huffman tree for lengths and literals
 # First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 represent lengths (some are ranges of lengths, with extra bits to be placed after symbol)
+# Simultaneously, build list of length codes & list of extra bits to append after codes representing ranges of lengths
 ll_frequencies = {}
+length_codes = []
+length_extrabits = []
+
 for nc in next_chars:
     if nc in ll_frequencies:
         ll_frequencies[nc] = ll_frequencies[nc] + 1
@@ -236,59 +241,82 @@ for nc in next_chars:
 
 for l in lengths:
     code = -1
+    extrabits = -1
     if l <= 10:
         code = 254 + l
     elif l == 11 or l == 12:
         code = 265
+        extrabits = l - 11
     elif l == 13 or l == 14:
         code = 266
+        extrabits = l - 13
     elif l == 15 or l == 16:
         code = 267
+        extrabits = l - 15
     elif l == 17 or l == 18:
         code = 268
+        extrabits = l - 17
     elif l >= 19 and l <= 22:
         code = 269
+        extrabits = l - 19
     elif l >= 23 and l <= 26:
         code = 270
+        extrabits = l - 23
     elif l >= 27 and l <= 30:
         code = 271
+        extrabits = l - 27
     elif l >= 31 and l <= 34:
         code = 272
+        extrabits = l - 31
     elif l >= 35 and l <= 42:
         code = 273
+        extrabits = l - 35
     elif l >= 43 and l <= 50:
         code = 274
+        extrabits = l - 43
     elif l >= 51 and l <= 58:
         code = 275
+        extrabits = l - 51
     elif l >= 59 and l <= 66:
         code = 276
+        extrabits = l - 59
     elif l >= 67 and l <= 82:
         code = 277
+        extrabits = l - 67
     elif l >= 83 and l <= 98:
         code = 278
+        extrabits = l - 83
     elif l >= 99 and l <= 114:
         code = 279
+        extrabits = l - 99
     elif l >= 115 and l <= 130:
         code = 280
+        extrabits = l - 115
     elif l >= 131 and l <= 162:
         code = 281
+        extrabits = l - 131
     elif l >= 163 and l <= 194:
         code = 282
+        extrabits = l - 163
     elif l >= 195 and l <= 226:
         code = 283
+        extrabits = l - 195
     elif l >= 227 and l <= 257:
         code = 284
+        extrabits = l - 227
     elif l == 258:
         code = 285
 
+    length_codes.append(code)
+    length_extrabits.append(extrabits)
+        
     if code in ll_frequencies:
         ll_frequencies[code] = ll_frequencies[code] + 1
     else:
         ll_frequencies[code] = 1
 
 # Build generic huffman tree from frequencies
-ll_forest = huff.build_forest(ll_frequencies)
-ll_tree = huff.buildhufftree(ll_forest)
+ll_tree = huff.buildhufftree_full(ll_frequencies)
 
 # Get ordered list of code lengths to create canonical huffman code 
 ll_codelengths = huff.getcodelengths(ll_tree)
@@ -301,7 +329,7 @@ print(ll_codelengths_list)
 prev = -1
 repeat_length = 0
 codelengthcodes = []
-repeatbits = []
+repeat_extrabits = []
 for length in ll_codelengths_list:
 
     #print("*\nprev: " + str(prev))
@@ -314,12 +342,12 @@ for length in ll_codelengths_list:
         if 1 <= prev <= 15 and repeat_length == 6:
             # Write repeat code (16) plus code for 6 repeats (3)
             codelengthcodes.append(16)
-            repeatbits.append(3)
+            repeat_extrabits.append(3)
             repeat_length = 0
         elif prev == 0 and repeat_length == 138:
             # Write long zero repeat code (18) plus code for 138 repeats (127)
             codelengthcodes.append(18)
-            repeatbits.append(127)
+            repeat_extrabits.append(127)
             repeat_length = 0
 
     # If we have changed code lengths, output code for last repeat section if
@@ -329,14 +357,14 @@ for length in ll_codelengths_list:
             if prev == 0:
                 if 3 <= repeat_length <= 10:
                     codelengthcodes.append(17)
-                    repeatbits.append(repeat_length - 3)
+                    repeat_extrabits.append(repeat_length - 3)
                 elif 11 <= repeat_length <= 138:
                     codelengthcodes.append(18)
-                    repeatbits.append(repeat_length - 11)
+                    repeat_extrabits.append(repeat_length - 11)
             else:
                 if 3 <= repeat_length <= 6:
                     codelengthcodes.append(16)
-                    repeatbits.append(repeat_length - 3)
+                    repeat_extrabits.append(repeat_length - 3)
 
         if repeat_length == 1:
             codelengthcodes.append(prev)
@@ -357,14 +385,14 @@ if not repeat_length == 0:
         if prev == 0:
             if 3 <= repeat_length <= 10:
                 codelengthcodes.append(17)
-                repeatbits.append(repeat_length - 3)
+                repeat_extrabits.append(repeat_length - 3)
             elif 11 <= repeat_length <= 138:
                 codelengthcodes.append(18)
-                repeatbits.append(repeat_length - 11)
+                repeat_extrabits.append(repeat_length - 11)
         else:
             if 3 <= repeat_length <= 6:
                 codelengthcodes.append(16)
-                repeatbits.append(repeat_length - 3)
+                repeat_extrabits.append(repeat_length - 3)
 
     if repeat_length == 1:
         codelengthcodes.append(prev)
@@ -383,8 +411,7 @@ for code in codelengthcodes:
     else:
         clc_frequencies[code] = 1
 
-clc_forest = huff.build_forest(clc_frequencies)
-clc_tree = huff.buildhufftree(clc_forest)
+clc_tree = huff.buildhufftree_full(clc_frequencies)
 
 # Get ordered list of code lengths to create canonical huffman code 
 clc_codelengths = huff.getcodelengths(clc_tree)
@@ -408,13 +435,121 @@ extrabits_index = 0
 for code in codelengthcodes:
     writebits(clc_canonical[code])
     if code >= 16:
-        writebits(repeatbits[extrabits_index])
-        i = i + 1
+        writebits(repeat_extrabits[extrabits_index])
+        extrabits_index = extrabits_index + 1
 
+# The decompressor can now construct the canonical huffman code for lengths/literals. Now we must repeat a lot of this process for distances before actually outputting any compressed data.
+
+# First, collect distance codes, extra bits, and code frequencies.
+dist_frequencies = {}
+dist_codes = []
+dist_extrabits = []
+for dist in offsets:
+    code = -1
+    extrabits = -1
+
+    if dist == 1:
+        code = 0
+    elif dist == 2:
+        code = 1
+    elif dist == 3:
+        code = 2
+    elif dist == 4:
+        code = 3
+    elif dist == 5 or dist == 6:
+        code = 4
+        extrabits = dist - 5
+    elif dist == 7 or dist == 8:
+        code = 5
+        extrabits = dist - 7
+    elif dist >= 9 and dist <= 12:
+        code = 6
+        extrabits = dist - 9
+    elif dist >= 13 and dist <= 16:
+        code = 7
+        extrabits = dist - 13
+    elif dist >= 17 and dist <= 24:
+        code = 8
+        extrabits = dist - 17
+    elif dist >= 25 and dist <= 32:
+        code = 9
+        extrabits = dist - 25
+    elif dist >= 33 and dist <= 48:
+        code = 10
+        extrabits = dist - 33
+    elif dist >= 49 and dist <= 64:
+        code = 11
+        extrabits = dist - 49
+    elif dist >= 65 and dist <= 96:
+        code = 12
+        extrabits = dist - 65
+    elif dist >= 97 and dist <= 128:
+        code = 13
+        extrabits = dist - 97
+    elif dist >= 129 and dist <= 192:
+        code = 14
+        extrabits = dist - 129
+    elif dist >= 193 and dist <= 256:
+        code = 15
+        extrabits = dist - 193
+    elif dist >= 257 and dist <= 384:
+        code = 16
+        extrabits = dist - 257
+    elif dist >= 385 and dist <= 512:
+        code = 17
+        extrabits = dist - 385
+    elif dist >= 513 and dist <= 768:
+        code = 18
+        extrabits = dist - 513
+    elif dist >= 769 and dist <= 1024:
+        code = 19
+        extrabits = dist - 769
+    elif dist >= 1025 and dist <= 1536:
+        code = 20
+        extrabits = dist - 1025
+    elif dist >= 1537 and dist <= 2048:
+        code = 21
+        extrabits = dist - 1537
+    elif dist >= 2049 and dist <= 3072:
+        code = 22
+        extrabits = dist - 2049
+    elif dist >= 3073 and dist <= 4096:
+        code = 23
+        extrabits = dist - 3073
+    elif dist >= 4097 and dist <= 6144:
+        code = 24
+        extrabits = dist - 4097
+    elif dist >= 6145 and dist <= 8192:
+        code = 25
+        extrabits = dist - 6145
+    elif dist >= 8193 and dist <= 12288:
+        code = 26
+        extrabits = dist - 8193
+    elif dist >= 12289 and dist <= 16384:
+        code = 27
+        extrabits = dist - 12289
+    elif dist >= 16385 and dist <= 24576:
+        code = 28
+        extrabits = dist - 16385
+    elif dist >= 24577 and dist <= 32768:
+        code = 29
+        extrabits = dist - 24577
+    
+
+    dist_codes.append(code)
+    dist_extrabits.append(extrabits)
+        
+    if code in dist_frequencies:
+        dist_frequencies[code] = dist_frequencies[code] + 1
+    else:
+        dist_frequencies[code] = 1
+
+
+
+        
+        
 # Then output literal/lengths compressed!!!
-# .. Ugh have to get list of literals/lengths first, with extra bits to distinguish same-code ones
-# And actually supposed to put out code lengths for distance first
-
+# Actually supposed to put out code lengths for distance first
 # Repeat this all for distances
 
 # Output compressed data

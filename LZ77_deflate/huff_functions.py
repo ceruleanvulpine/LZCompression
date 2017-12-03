@@ -20,6 +20,11 @@ def buildhufftree(forest):
         placeholder_index = placeholder_index - 1
     return(forest)
 
+def buildhufftree_full(freqs):
+    forest = build_forest(freqs)
+    tree = buildhufftree(forest)
+    return tree
+
 # Builds a huff table from a huffman tree
 def buildhufftable(forest):
     huff_table = {}

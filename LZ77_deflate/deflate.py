@@ -1,7 +1,8 @@
 # DEFLATE.py
 # Compresses files with a DEFLATE-ish algorithm. (Working towards compliance.)
 # NOTE: output NUMBER of length/literal/etc values before outputting huffman trees
-# NOTE: rework length/distance -> code to utilize the pattern ? 
+# NOTE: rework length/distance -> code to utilize the pattern ?
+# NOTE: change algorithm to only use next_char for non-repeated letters and dist/length for repeats, instead of triples
 
 import heapq as hq
 import sys
@@ -497,16 +498,4 @@ for code in codelengthcodes:
         writebits(all_extrabits[extrabits_index])
         extrabits_index = extrabits_index + 1
 
-# The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now. 
-
-
-        
-        
-# Then output literal/lengths compressed!!!
-# Actually supposed to put out code lengths for distance first
-# Repeat this all for distances
-
-# Output compressed data
-
-
-
+# The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now, taken from lists offsets, lengths, and next_chars and then encoded with the appropriate huffman code (extra bits added if necessary)

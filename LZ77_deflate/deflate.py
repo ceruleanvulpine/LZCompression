@@ -326,49 +326,11 @@ ll_canonical = huff.makecanonical(range(0, 286), ll_codelengths_list)
 print(ll_codelengths_list)
 
 # Construct list of code length codes for canonical huffman tree for lengths/literals
-codes_plus_extrabits = defl.getcodelengthcodes(ll_codelengths_list)
-codelengthcodes = codes_plus_extrabits[0]
-repeat_extrabits = codes_plus_extrabits[1]
+ll_codes_plus_extrabits = defl.getcodelengthcodes(ll_codelengths_list)
+ll_codelengthcodes = ll_codes_plus_extrabits[0]
+ll_repeat_extrabits = ll_codes_plus_extrabits[1]
 
-
-# Compress THOSE code length codes with ANOTHER canonical huffman code and output
-# First collect frequencies
-clc_frequencies = {}
-for code in codelengthcodes:
-    if code in clc_frequencies:
-        clc_frequencies[code] = clc_frequencies[code] + 1
-    else:
-        clc_frequencies[code] = 1
-
-clc_tree = huff.buildhufftree_full(clc_frequencies)
-
-# Get ordered list of code lengths to create canonical huffman code 
-clc_codelengths = huff.getcodelengths(clc_tree)
-clc_codelengths_list = huff.lengthslist(range(0, 19), clc_codelengths)
-clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
-print(clc_canonical)
-
-# Open output stream; towrite is a one-byte buffer, bits_written keeps track of how much of it is full
-output = open(outputname, "wb")
-
-# Currently we are putting all data in one dynamically compressed block
-# So write BFINAL = 1 and BTYPE = 0b10 to the buffer, to signify that it is final and dynamically compressed
-writebits(6)
-
-# Output code lengths for clc tree in this weird order...
-for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
-    writebits(clc_codelengths_list[i])
-
-# Then output clcs using canonical huffman code
-extrabits_index = 0
-for code in codelengthcodes:
-    writebits(clc_canonical[code])
-    if code >= 16:
-        writebits(repeat_extrabits[extrabits_index])
-        extrabits_index = extrabits_index + 1
-
-# The decompressor can now construct the canonical huffman code for lengths/literals. Now we must repeat a lot of this process for distances before actually outputting any compressed data.
-
+# Now repeat for distance alphabet
 # First, collect distance codes, extra bits, and code frequencies.
 dist_frequencies = {}
 dist_codes = []
@@ -464,7 +426,6 @@ for dist in offsets:
         code = 29
         extrabits = dist - 24577
     
-
     dist_codes.append(code)
     dist_extrabits.append(extrabits)
         
@@ -473,6 +434,70 @@ for dist in offsets:
     else:
         dist_frequencies[code] = 1
 
+# Build generic huffman tree from frequencies
+dist_tree = huff.buildhufftree_full(dist_frequencies)
+
+# Get ordered list of code lengths to create canonical huffman code 
+dist_codelengths = huff.getcodelengths(dist_tree)
+dist_codelengths_list = huff.lengthslist(range(0, 30), dist_codelengths)
+dist_canonical = huff.makecanonical(range(0, 30), dist_codelengths_list)
+print(dist_codelengths_list)
+
+# Construct list of code length codes for canonical huffman tree for distances
+dist_codes_plus_extrabits = defl.getcodelengthcodes(dist_codelengths_list)
+dist_codelengthcodes = dist_codes_plus_extrabits[0]
+dist_repeat_extrabits = dist_codes_plus_extrabits[1]
+
+# Compress ALL code length codes with ANOTHER canonical huffman code
+# First collect frequencies from both ll and dist code length code lists
+clc_frequencies = {}
+for code in ll_codelengthcodes:
+    if code in clc_frequencies:
+        clc_frequencies[code] = clc_frequencies[code] + 1
+    else:
+        clc_frequencies[code] = 1
+
+for code in dist_codelengthcodes:
+    if code in clc_frequencies:
+        clc_frequencies[code] = clc_frequencies[code] + 1
+    else:
+        clc_frequencies[code] = 1
+
+clc_tree = huff.buildhufftree_full(clc_frequencies)
+
+# Get ordered list of code lengths to create canonical huffman code 
+clc_codelengths = huff.getcodelengths(clc_tree)
+clc_codelengths_list = huff.lengthslist(range(0, 19), clc_codelengths)
+clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
+print(clc_canonical)
+
+# Open output stream; towrite is a one-byte buffer, bits_written keeps track of how much of it is full
+output = open(outputname, "wb")
+
+# Currently we are putting all data in one dynamically compressed block
+# So write BFINAL = 1 and BTYPE = 0b10 to the buffer, to signify that it is final and dynamically compressed
+writebits(6)
+
+# Output code lengths for clc tree in this weird order
+for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
+    writebits(clc_codelengths_list[i])
+
+
+# Create list of all clcs, ll and dist together
+codelengthcodes = ll_codelengthcodes + dist_codelengthcodes
+all_extrabits = ll_repeat_extrabits + dist_repeat_extrabits
+print(codelengthcodes)
+print(all_extrabits)
+
+# Then output clcs using canonical huffman code
+extrabits_index = 0
+for code in codelengthcodes:
+    writebits(clc_canonical[code])
+    if code >= 16:
+        writebits(all_extrabits[extrabits_index])
+        extrabits_index = extrabits_index + 1
+
+# The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now. 
 
 
         

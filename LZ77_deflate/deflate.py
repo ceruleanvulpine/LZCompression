@@ -51,7 +51,6 @@ def writebits(n):
         bits_written = 0 
             
 # -------------------------------------------------------
-
 search_capacity = 32000
 search_size = 0
 

@@ -41,11 +41,13 @@ def writebits(n):
             bits_written = bits_written + 1
 
             if bits_written == 8:
+                print("emptying buffer: " + str(to_write))
                 output.write(to_write.to_bytes(1, byteorder = "big"))
-                towrite = 0
+                to_write = 0
                 bits_written = 0
             
     if bits_written == 8:
+        print("emptying buffer: " + str(to_write))
         output.write(to_write.to_bytes(1, byteorder = "big"))
         to_write = 0
         bits_written = 0

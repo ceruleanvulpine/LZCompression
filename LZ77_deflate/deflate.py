@@ -1,8 +1,8 @@
-# DEFLATE.py
+# DEFLATE_NOT3.py
 # Compresses files with a DEFLATE-ish algorithm. (Working towards compliance.)
+# Working to send data as length/offset pairs and literals, instead of offset/length/nextchar triples
 # NOTE: output NUMBER of length/literal/etc values before outputting huffman trees
 # NOTE: rework length/distance -> code to utilize the pattern ?
-# NOTE: change algorithm to only use next_char for non-repeated letters and dist/length for repeats, instead of triples
 
 import heapq as hq
 import sys
@@ -42,15 +42,43 @@ def writebits(n):
 
             if bits_written == 8:
                 output.write(to_write.to_bytes(1, byteorder = "big"))
-                towrite = 0
+                to_write = 0
                 bits_written = 0
             
     if bits_written == 8:
         output.write(to_write.to_bytes(1, byteorder = "big"))
-        towrite = 0
-        bits_written = 0 
+        to_write = 0
+        bits_written = 0
+
+# Write a number between 0 and 7 as a sequence of three bits
+# (Writebits will write, ex., 2 as 10 instead of 010)
+def write3bits(n):
+    
+    global to_write
+    global bits_written
+
+    power = 4
+    for i in range(0, 3):
+        
+        if (n - power >=0):
+            bit = 1
+            n = n - power
+        else:
+            bit = 0
+
+        bit_flicker = bit << (7-bits_written)
+        to_write = to_write | bit_flicker
+        bits_written = bits_written + 1
+
+        if bits_written == 8:
+            output.write(to_write.to_bytes(1, byteorder = "big"))
+            to_write = 0
+            bits_written = 0
+        
+        power = power / 2
             
 # -------------------------------------------------------
+
 search_capacity = 32000
 search_size = 0
 
@@ -76,10 +104,15 @@ search_buffer = bytearray(search_capacity)
 lookahead = bytearray(lookahead_capacity)
 search = {}
 
-# We use LZ77 algorithm to compute three lists: offsets, lengths and next_chars; will be compressed and sent in triples
-offsets = []
-lengths = []
-next_chars = []
+# We use the LZ77 algorithm to compute some lists:
+# Coded lengths and literals
+# Extra bits for length codes that specify a range of lengths
+# Distance offset codes for each length
+# Extra bits for distance codes that specify a range of distances
+lens_lits = []
+len_extrabits = []
+distances = []
+dist_extrabits = []
 
 # Fill lookahead buffer with first [lookahead_capacity] chars
 next_char = text.read(1)
@@ -110,9 +143,7 @@ while not lookahead_size <= 0:
             print("Sending as literal")
             
             # Send next char as literal
-            offsets.append(0)
-            lengths.append(0)
-            next_chars.append(lookahead[0])
+            lens_lits.append(lookahead[0])
             shift = 1
             
             # String has not been encountered previously, so construct an entry in search with the index of this match
@@ -152,7 +183,6 @@ while not lookahead_size <= 0:
                         
                         while lookahead[cur_length - cur_offset] == lookahead[cur_length] and not cur_length == lookahead_size - 1:
                             cur_length = cur_length + 1
-                            
 
                     # If this is new longest match, store it in length/offset
                     if cur_length > length:
@@ -160,11 +190,14 @@ while not lookahead_size <= 0:
                         offset = cur_offset
 
                 print("... which has offset " + str(cur_offset) + " and length " + str(cur_length))
-                        
-            offsets.append(offset)
-            lengths.append(length)
-            next_chars.append(lookahead[length])
-            shift = length + 1
+
+            dist_code = defl.dist_code(offset)
+            distances.append(dist_code[0])
+            dist_extrabits.append(dist_code[1])
+            length_code = defl.length_code(length)
+            lens_lits.append(length_code[0])
+            len_extrabits.append(length_code[1])
+            shift = length
 
             # Add this index to the entry for next_string
             # (At the beginning, so search will prioritize more recent matches)
@@ -173,9 +206,7 @@ while not lookahead_size <= 0:
 
     else:
         # Less than three bytes left, so send as literal
-        offsets.append(0)
-        lengths.append(0)
-        next_chars.append(lookahead[0])
+        lens_lits.append(lookahead[0])
         shift = 1
             
     # Shift lookahead and search buffers, and add three-strings to search as we
@@ -219,102 +250,23 @@ while not lookahead_size <= 0:
     chars_sent = chars_sent + shift
 
 # Write an end-of-block character (there will only be one of these right now since it's all in one block)
-offsets.append(0)
-lengths.append(0)
-next_chars.append(256)
+lens_lits.append(256)
 
-print(str(offsets))
-print(str(lengths))
-print(str(next_chars))
+print(str(lens_lits))
+print(str(len_extrabits))
+print(str(distances))
+print(str(dist_extrabits))
+
 
 # Constructing huffman tree for lengths and literals
-# First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 represent lengths (some are ranges of lengths, with extra bits to be placed after symbol)
-# Simultaneously, build list of length codes & list of extra bits to append after codes representing ranges of lengths
+# First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 represent lengths (some represent a range of lengths)
 ll_frequencies = {}
-length_codes = []
-length_extrabits = []
 
-for nc in next_chars:
-    if nc in ll_frequencies:
-        ll_frequencies[nc] = ll_frequencies[nc] + 1
+for ll in lens_lits:
+    if ll in ll_frequencies:
+        ll_frequencies[ll] = ll_frequencies[ll] + 1
     else:
-        ll_frequencies[nc] = 1
-
-for l in lengths:
-    code = -1
-    extrabits = -1
-    if l <= 10:
-        code = 254 + l
-    elif l == 11 or l == 12:
-        code = 265
-        extrabits = l - 11
-    elif l == 13 or l == 14:
-        code = 266
-        extrabits = l - 13
-    elif l == 15 or l == 16:
-        code = 267
-        extrabits = l - 15
-    elif l == 17 or l == 18:
-        code = 268
-        extrabits = l - 17
-    elif l >= 19 and l <= 22:
-        code = 269
-        extrabits = l - 19
-    elif l >= 23 and l <= 26:
-        code = 270
-        extrabits = l - 23
-    elif l >= 27 and l <= 30:
-        code = 271
-        extrabits = l - 27
-    elif l >= 31 and l <= 34:
-        code = 272
-        extrabits = l - 31
-    elif l >= 35 and l <= 42:
-        code = 273
-        extrabits = l - 35
-    elif l >= 43 and l <= 50:
-        code = 274
-        extrabits = l - 43
-    elif l >= 51 and l <= 58:
-        code = 275
-        extrabits = l - 51
-    elif l >= 59 and l <= 66:
-        code = 276
-        extrabits = l - 59
-    elif l >= 67 and l <= 82:
-        code = 277
-        extrabits = l - 67
-    elif l >= 83 and l <= 98:
-        code = 278
-        extrabits = l - 83
-    elif l >= 99 and l <= 114:
-        code = 279
-        extrabits = l - 99
-    elif l >= 115 and l <= 130:
-        code = 280
-        extrabits = l - 115
-    elif l >= 131 and l <= 162:
-        code = 281
-        extrabits = l - 131
-    elif l >= 163 and l <= 194:
-        code = 282
-        extrabits = l - 163
-    elif l >= 195 and l <= 226:
-        code = 283
-        extrabits = l - 195
-    elif l >= 227 and l <= 257:
-        code = 284
-        extrabits = l - 227
-    elif l == 258:
-        code = 285
-
-    length_codes.append(code)
-    length_extrabits.append(extrabits)
-        
-    if code in ll_frequencies:
-        ll_frequencies[code] = ll_frequencies[code] + 1
-    else:
-        ll_frequencies[code] = 1
+        ll_frequencies[ll] = 1
 
 # Build generic huffman tree from frequencies
 ll_tree = huff.buildhufftree_full(ll_frequencies)
@@ -333,106 +285,12 @@ ll_repeat_extrabits = ll_codes_plus_extrabits[1]
 # Now repeat for distance alphabet
 # First, collect distance codes, extra bits, and code frequencies.
 dist_frequencies = {}
-dist_codes = []
-dist_extrabits = []
-for dist in offsets:
-    code = -1
-    extrabits = -1
 
-    if dist == 1:
-        code = 0
-    elif dist == 2:
-        code = 1
-    elif dist == 3:
-        code = 2
-    elif dist == 4:
-        code = 3
-    elif dist == 5 or dist == 6:
-        code = 4
-        extrabits = dist - 5
-    elif dist == 7 or dist == 8:
-        code = 5
-        extrabits = dist - 7
-    elif dist >= 9 and dist <= 12:
-        code = 6
-        extrabits = dist - 9
-    elif dist >= 13 and dist <= 16:
-        code = 7
-        extrabits = dist - 13
-    elif dist >= 17 and dist <= 24:
-        code = 8
-        extrabits = dist - 17
-    elif dist >= 25 and dist <= 32:
-        code = 9
-        extrabits = dist - 25
-    elif dist >= 33 and dist <= 48:
-        code = 10
-        extrabits = dist - 33
-    elif dist >= 49 and dist <= 64:
-        code = 11
-        extrabits = dist - 49
-    elif dist >= 65 and dist <= 96:
-        code = 12
-        extrabits = dist - 65
-    elif dist >= 97 and dist <= 128:
-        code = 13
-        extrabits = dist - 97
-    elif dist >= 129 and dist <= 192:
-        code = 14
-        extrabits = dist - 129
-    elif dist >= 193 and dist <= 256:
-        code = 15
-        extrabits = dist - 193
-    elif dist >= 257 and dist <= 384:
-        code = 16
-        extrabits = dist - 257
-    elif dist >= 385 and dist <= 512:
-        code = 17
-        extrabits = dist - 385
-    elif dist >= 513 and dist <= 768:
-        code = 18
-        extrabits = dist - 513
-    elif dist >= 769 and dist <= 1024:
-        code = 19
-        extrabits = dist - 769
-    elif dist >= 1025 and dist <= 1536:
-        code = 20
-        extrabits = dist - 1025
-    elif dist >= 1537 and dist <= 2048:
-        code = 21
-        extrabits = dist - 1537
-    elif dist >= 2049 and dist <= 3072:
-        code = 22
-        extrabits = dist - 2049
-    elif dist >= 3073 and dist <= 4096:
-        code = 23
-        extrabits = dist - 3073
-    elif dist >= 4097 and dist <= 6144:
-        code = 24
-        extrabits = dist - 4097
-    elif dist >= 6145 and dist <= 8192:
-        code = 25
-        extrabits = dist - 6145
-    elif dist >= 8193 and dist <= 12288:
-        code = 26
-        extrabits = dist - 8193
-    elif dist >= 12289 and dist <= 16384:
-        code = 27
-        extrabits = dist - 12289
-    elif dist >= 16385 and dist <= 24576:
-        code = 28
-        extrabits = dist - 16385
-    elif dist >= 24577 and dist <= 32768:
-        code = 29
-        extrabits = dist - 24577
-    
-    dist_codes.append(code)
-    dist_extrabits.append(extrabits)
-        
-    if code in dist_frequencies:
-        dist_frequencies[code] = dist_frequencies[code] + 1
+for dist in distances:
+    if dist in dist_frequencies:
+        dist_frequencies[dist] = dist_frequencies[dist] + 1
     else:
-        dist_frequencies[code] = 1
+        dist_frequencies[dist] = 1
 
 # Build generic huffman tree from frequencies
 dist_tree = huff.buildhufftree_full(dist_frequencies)
@@ -468,6 +326,7 @@ clc_tree = huff.buildhufftree_full(clc_frequencies)
 # Get ordered list of code lengths to create canonical huffman code 
 clc_codelengths = huff.getcodelengths(clc_tree)
 clc_codelengths_list = huff.lengthslist(range(0, 19), clc_codelengths)
+print("clc_codelengths_list: " + str(clc_codelengths_list))
 clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
 print(clc_canonical)
 
@@ -480,8 +339,7 @@ writebits(6)
 
 # Output code lengths for clc tree in this weird order
 for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
-    writebits(clc_codelengths_list[i])
-
+    write3bits(clc_codelengths_list[i])
 
 # Create list of all clcs, ll and dist together
 codelengthcodes = ll_codelengthcodes + dist_codelengthcodes
@@ -497,4 +355,18 @@ for code in codelengthcodes:
         writebits(all_extrabits[extrabits_index])
         extrabits_index = extrabits_index + 1
 
-# The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now, taken from lists offsets, lengths, and next_chars and then encoded with the appropriate huffman code (extra bits added if necessary)
+# The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now, taken from lists lens_lits and distances and then encoded with the appropriate huffman code (extra bits added if necessary)
+
+num_tuples = 0 # Number of length/distance pairs sent
+for ll in lens_lits:
+    writebits(ll_canonical[ll])
+    if ll > 256:
+        if len_extrabits[num_tuples] != -1:
+            writebits(len_extrabits[num_tuples])
+        writebits(dist_canonical[distances[num_tuples]])
+        if dist_extrabits[num_tuples] != -1:
+            writebits(dist_extrabits[num_tuples])
+        num_tuples = num_tuples + 1
+        
+
+output.close()

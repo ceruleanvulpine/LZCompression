@@ -47,20 +47,19 @@ def writebits(n):
             
     if bits_written == 8:
         output.write(to_write.to_bytes(1, byteorder = "big"))
-        towrite = 0
+        to_write = 0
         bits_written = 0
 
 # Write a number between 0 and 7 as a sequence of three bits
 # (Writebits will write, ex., 2 as 10 instead of 010)
 def write3bits(n):
-
-    print(n)
     
     global to_write
     global bits_written
 
     power = 4
     for i in range(0, 3):
+        
         if (n - power >=0):
             bit = 1
             n = n - power
@@ -73,10 +72,9 @@ def write3bits(n):
 
         if bits_written == 8:
             output.write(to_write.to_bytes(1, byteorder = "big"))
-            towrite = 0
+            to_write = 0
             bits_written = 0
         
-
         power = power / 2
             
 # -------------------------------------------------------
@@ -328,6 +326,7 @@ clc_tree = huff.buildhufftree_full(clc_frequencies)
 # Get ordered list of code lengths to create canonical huffman code 
 clc_codelengths = huff.getcodelengths(clc_tree)
 clc_codelengths_list = huff.lengthslist(range(0, 19), clc_codelengths)
+print("clc_codelengths_list: " + str(clc_codelengths_list))
 clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
 print(clc_canonical)
 

@@ -48,7 +48,36 @@ def writebits(n):
     if bits_written == 8:
         output.write(to_write.to_bytes(1, byteorder = "big"))
         towrite = 0
-        bits_written = 0 
+        bits_written = 0
+
+# Write a number between 0 and 7 as a sequence of three bits
+# (Writebits will write, ex., 2 as 10 instead of 010)
+def write3bits(n):
+
+    print(n)
+    
+    global to_write
+    global bits_written
+
+    power = 4
+    for i in range(0, 3):
+        if (n - power >=0):
+            bit = 1
+            n = n - power
+        else:
+            bit = 0
+
+        bit_flicker = bit << (7-bits_written)
+        to_write = to_write | bit_flicker
+        bits_written = bits_written + 1
+
+        if bits_written == 8:
+            output.write(to_write.to_bytes(1, byteorder = "big"))
+            towrite = 0
+            bits_written = 0
+        
+
+        power = power / 2
             
 # -------------------------------------------------------
 
@@ -311,7 +340,7 @@ writebits(6)
 
 # Output code lengths for clc tree in this weird order
 for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
-    writebits(clc_codelengths_list[i])
+    write3bits(clc_codelengths_list[i])
 
 # Create list of all clcs, ll and dist together
 codelengthcodes = ll_codelengthcodes + dist_codelengthcodes

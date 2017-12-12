@@ -69,9 +69,73 @@ print(btype)
 clc_codelengths = {}
 
 # Read in code lengths for clc tree, which are printed in this weird order
-# .. Dangit they should each be written in 3 bits, not variable #
 for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
     clc_codelengths[i] = readbits(3)
 
-print(clc_codelengths)
+clc_codelengths_list = []
+for i in range(0, 19):
+    clc_codelengths_list.append(clc_codelengths[i])
+print(clc_codelengths_list)
 
+# Construct canonical huffman code for code length codes
+clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
+# Reverse key/value pairs for decoding
+clc_canonical_dec = {}
+for key in clc_canonical:
+    clc_canonical_dec[clc_canonical[key]] = key
+
+print(clc_canonical)
+print(clc_canonical_dec)
+    
+# Use this code to decode code lengths for length/literal and distance trees
+# NOTE: Build tree first? Is that faster?
+# 286 length/literal code lengths and 30 distance code lengths
+# But code is tricky and uses extra bits
+
+ll_codelengths_list = []
+prev = -1
+
+for j in range(0, 10):
+#while not len(ll_codelengths_list) == 286:
+    
+    current_code = readbits(1)
+    print("first bit of code: " + str(current_code))
+    while not current_code in clc_canonical_dec:
+        print("Current code not in decoder list; adding")
+        print(current_code)
+        current_code = current_code * 2
+        current_code = current_code + readbits(1)
+        print("Current code is now " + str(current_code))
+
+    print(current_code)
+        
+    length_code = clc_canonical_dec[current_code]
+
+    print(length_code)
+    
+    if length_code < 16:
+        # Represent literally code lengths of 0-15
+        ll_codelengths_list.append(length_code)
+        prev = length_code
+    elif length_code == 16:
+        # 16 followed by 2 extra bits represents prev code repeated 3-6 times
+        extrabits = readbits(2)
+        numrepeats = 3 + extrabits
+        for i in range(0, numrepeats):
+            ll_codelengths_list.append(prev)
+    elif length_code == 17:
+        # 17 followed by 3 extra bits represents 0 repeated 3-10 times
+        extrabits = readbits(3)
+        numrepeats = 3 + extrabits
+        for i in range(0, numrepeats):
+            ll_codelengths_list.append(prev)
+    elif length_code == 18:
+        # 18 followed by 7 extra bits represents 0 repeated 11-138 times
+        extrabits = readbits(7)
+        numrepeats = 11 + extrabits
+        for i in range(0, numrepeats):
+            ll_codelengths_list.append(prev)
+    else:
+        print("error")
+
+print(ll_codelengths_list)

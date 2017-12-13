@@ -119,6 +119,7 @@ def makecanonicaltree(canonical_code):
     root = [-1, None, None]
     current_node = root
     for symbol in code_copy:
+        current_node = root
         for bit in canonical_code[symbol]:
             if not bit:
                 if not current_node[1]:

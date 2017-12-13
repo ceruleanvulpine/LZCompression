@@ -84,25 +84,31 @@ print(clc_canonical)
 clc_canonical_tree = huff.makecanonicaltree(clc_canonical)
 print(clc_canonical_tree)
 
-sys.exit(1)
-
-# Flip to get decoding table NOTE: Fix this, bit strings are UNHASHABLE!!!
-clc_canon_dec = {}
-for key in clc_canonical:
-    clc_canon_dec[clc_canonical[key]] = key
-
 # Use this code to decode code lengths for length/literal and distance trees
 # 286 length/literal code lengths and 30 distance code lengths
-# But code is tricky and uses extra bits
+# But some codes are followed by extra bits to specify position in a range
 ll_codelengths_list = []
 prev = -1
 
 while not len(ll_codelengths_list) == 286:
-    current_code = bs.BitArray(uint=readbits(1), length = 1)
-    while not current_code in clc_canon_dec:
-        current_code = current_code + bs.BitArray(uint=readbits(1), length = 1)
-    print(current_code)
-    length_code = clc_canon_dec[current_code]
+
+    # Read bits and navigate in decoding tree until we reach a leaf node
+    leafreached = False
+    currentnode = clc_canonical_tree
+    while not leafreached:
+        print("currentnode: " + str(currentnode))
+        if (not currentnode[1]) and (not currentnode[2]):
+            leafreached = True
+            print("reached leaf with data " + str(currentnode[0]))
+        else:
+            nextbit = bs.BitArray(uint = readbits(1), length = 1)
+            print("nextbit: " + str(nextbit))
+            if not nextbit[0]:
+                currentnode = currentnode[1]
+            else:
+                currentnode = currentnode[2]
+
+    length_code = currentnode[0]
     print(length_code)
     
     if length_code < 16:
@@ -131,3 +137,59 @@ while not len(ll_codelengths_list) == 286:
         print("error")
 
 print(ll_codelengths_list)
+
+dist_codelengths_list = []
+prev = -1
+
+while not len(dist_codelengths_list) == 30:
+
+    # Read bits and navigate in decoding tree until we reach a leaf node
+    leafreached = False
+    currentnode = clc_canonical_tree
+    while not leafreached:
+        if (not currentnode[1]) and (not currentnode[2]):
+            leafreached = True
+        else:
+            nextbit = bs.BitArray(uint = readbits(1), length = 1)
+            if not nextbit[0]:
+                currentnode = currentnode[1]
+            else:
+                currentnode = currentnode[2]
+
+    length_code = currentnode[0]
+    print(length_code)
+    
+    if length_code < 16:
+        # Represent literally code lengths of 0-15
+        dist_codelengths_list.append(length_code)
+        prev = length_code
+    elif length_code == 16:
+        # 16 followed by 2 extra bits represents prev code repeated 3-6 times
+        extrabits = readbits(2)
+        numrepeats = 3 + extrabits
+        for i in range(0, numrepeats):
+            dist_codelengths_list.append(prev)
+    elif length_code == 17:
+        # 17 followed by 3 extra bits represents 0 repeated 3-10 times
+        extrabits = readbits(3)
+        numrepeats = 3 + extrabits
+        for i in range(0, numrepeats):
+            dist_codelengths_list.append(prev)
+    elif length_code == 18:
+        # 18 followed by 7 extra bits represents 0 repeated 11-138 times
+        extrabits = readbits(7)
+        numrepeats = 11 + extrabits
+        for i in range(0, numrepeats):
+            dist_codelengths_list.append(prev)
+    else:
+        print("error")
+
+print(dist_codelengths_list)
+
+# Construct canonical huffman code and decoding tree for length/literal codes
+ll_canonical = huff.makecanonical(range(0, 286), ll_codelengths_list)
+ll_canonical_tree = huff.makecanonicaltree(ll_canonical)
+
+# Construct canonical huffman code and decoding tree for distance codes
+dist_canonical = huff.makecanonical(range(0, 30), dist_codelengths_list)
+dist_canonical_tree = huff.makecanonicaltree(dist_canonical)

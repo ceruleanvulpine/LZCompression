@@ -79,39 +79,29 @@ for i in range(0, 19):
 print(clc_codelengths_list)
 
 
-
 # Construct canonical huffman code for code length codes
 clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
-# Construct dictionary w/1/0 strings
-clc_canonical_strings = huff.makecanonical_strings(range(0, 19), clc_codelengths_list, clc_canonical)
-print(clc_canonical_strings)
+print(clc_canonical)
 
 sys.exit(1)
-    
+
+# Flip to get decoding table NOTE: Fix this, bit strings are UNHASHABLE!!!
+clc_canon_dec = {}
+for key in clc_canonical:
+    clc_canon_dec[clc_canonical[key]] = key
+
 # Use this code to decode code lengths for length/literal and distance trees
-# NOTE: Build tree first? Is that faster?
 # 286 length/literal code lengths and 30 distance code lengths
 # But code is tricky and uses extra bits
-
 ll_codelengths_list = []
 prev = -1
 
-for j in range(0, 10):
-#while not len(ll_codelengths_list) == 286:
-    
-    current_code = readbits(1)
-    print("first bit of code: " + str(current_code))
-    while not current_code in clc_canonical_dec:
-        print("Current code not in decoder list; adding")
-        print(current_code)
-        current_code = current_code * 2
-        current_code = current_code + readbits(1)
-        print("Current code is now " + str(current_code))
-
+while not len(ll_codelengths_list) == 286:
+    current_code = bs.BitArray(uint=readbits(1), length = 1)
+    while not current_code in clc_canon_dec:
+        current_code = current_code + bs.BitArray(uint=readbits(1), length = 1)
     print(current_code)
-        
-    length_code = clc_canonical_dec[current_code]
-
+    length_code = clc_canon_dec[current_code]
     print(length_code)
     
     if length_code < 16:

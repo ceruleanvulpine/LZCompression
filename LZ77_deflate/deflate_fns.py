@@ -75,7 +75,7 @@ def length_code(l):
 
 
 # Given an integer length between 3 and 258, returns the number of extra bits that follow the code for that length
-def length_code_num_extrabits(l)
+def length_code_num_extrabits(l):
     if l <= 10:
         return 0
     elif l >= 11 and l <= 18:

@@ -67,8 +67,8 @@ def lengthslist(symbols, lengths):
     
 # Given an ordered symbol set list and a list of code lengths,
 # constructs a dictionary containing the corresponding canonical huffman code
+# with codes stored as bitstrings.
 # Algorithm from DEFLATE docs
-# NOTE: The code 000 will be stored as 0, so must also reference code_lengths to determine how many bits to write it in. 
 def makecanonical(symbols, lengths):
 
     max_length = 0
@@ -101,36 +101,12 @@ def makecanonical(symbols, lengths):
             canon_codes[symbols[i]] = next_code[lengths[i]]
             next_code[lengths[i]] = next_code[lengths[i]] + 1
 
-    return canon_codes
-
-# # Given a canonical huffman code,
-# constructs a dictionary containing the corresponding canonical huffman code -
-# - but codes are strings (i.e. "000") 
-# Algorithm from DEFLATE docs
-def makecanonical_strings(symbols, lengths, canonical):
-    string_canonical = {}
+    print(canon_codes)
+            
+    canon_codes_bitstrings = {}
     for i in range(0, len(symbols)):
-        symbol = symbols[i]
-        if symbols in canonical:
-            string_canonical[symbol] = stringNBits(canonical[symbol], lengths[i])
+        if symbols[i] in canon_codes:
+            canon_codes_bitstrings[symbols[i]] = bs.Bits(uint = canon_codes[symbols[i]], length = lengths[i])
 
-    return string_canonical
-
-# Writes the number "data" as a string of n 1s and 0s
-def stringNBits(data, n):
-
-    rtn = ""
-
-    power = 2^(n-1)
-    for i in range(0, n):
-        if (data - power >= 0):
-            bit = 1
-            data = data - power
-        else:
-            bit = 0
-
-        rtn = rtn + str(bit)
-        
-        power = power / 2
-
-    return rtn
+    print(canon_codes_bitstrings)
+    return canon_codes_bitstrings

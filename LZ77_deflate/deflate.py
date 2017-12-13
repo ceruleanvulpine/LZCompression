@@ -25,7 +25,7 @@ def writebits(data, n):
     data_bits = bs.Bits(uint=data, length=n)
 
     for i in range(0, n):
-        if(data_bits[n-1]):
+        if(data_bits[i]):
             bit = 1
         else:
             bit = 0
@@ -38,6 +38,26 @@ def writebits(data, n):
             output.write(to_write.to_bytes(1, byteorder = "big"))
             to_write = 0
             bits_written = 0
+
+def writebitstring(data):
+    global to_write
+    global bits_written
+
+    for i in range(0, len(data)):
+        if(data[i]):
+            bit = 1
+        else:
+            bit = 0
+            
+        bit_flicker = bit << (7-bits_written)
+        to_write = to_write | bit_flicker
+        bits_written = bits_written + 1
+
+        if bits_written == 8:
+            output.write(to_write.to_bytes(1, byteorder = "big"))
+            to_write = 0
+            bits_written = 0
+    
             
 # ------------------------------------------------------
 search_capacity = 32000
@@ -237,6 +257,7 @@ ll_codelengths = huff.getcodelengths(ll_tree)
 ll_codelengths_list = huff.lengthslist(range(0, 286), ll_codelengths)
 ll_canonical = huff.makecanonical(range(0, 286), ll_codelengths_list)
 print(ll_codelengths_list)
+print("LL_CANONICAL: " + str(ll_canonical))
 
 # Construct list of code length codes for canonical huffman tree for lengths/literals
 ll_codes_plus_extrabits = defl.getcodelengthcodes(ll_codelengths_list)
@@ -311,8 +332,7 @@ print(all_extrabits)
 # Then output clcs using canonical huffman code
 extrabits_index = 0
 for code in codelengthcodes:
-    codelength = clc_codelengths[code]
-    writebits(clc_canonical[code], codelength)
+    writebitstring(clc_canonical[code])
     if code == 16:
         writebits(all_extrabits[extrabits_index], 2)
         extrabits_index = extrabits_index + 1
@@ -322,21 +342,19 @@ for code in codelengthcodes:
     if code == 18:
         writebits(all_extrabits[extrabits_index], 7)
         extrabits_index = extrabits_index + 1
-
-sys.exit(1)
         
 # The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now, taken from lists lens_lits and distances and then encoded with the appropriate huffman code (extra bits added if necessary)
 # Note: Fixed extra bits but not huffman code
 num_tuples = 0 # Number of length/distance pairs sent
 for ll in lens_lits:
-    writebits(ll_canonical[ll])
+    writebitstring(ll_canonical[ll])
     if ll > 256:
         cur_length = ll_canonical[ll]
         cur_dist = distances[num_tuples]
 
         if len_extrabits[num_tuples] != -1:
             writebits(len_extrabits[num_tuples], defl.length_code_num_extrabits(cur_length))
-        writebits(dist_canonical[distances[num_tuples]])
+        writebitstring(dist_canonical[distances[num_tuples]])
         if dist_extrabits[num_tuples] != -1:
             writebits(dist_extrabits[num_tuples], defl.dist_code_num_extrabits(cur_dist))
         num_tuples = num_tuples + 1

@@ -73,6 +73,24 @@ def length_code(l):
 
     return (code, extrabits)
 
+
+# Given an integer length between 3 and 258, returns the number of extra bits that follow the code for that length
+def length_code_num_extrabits(l)
+    if l <= 10:
+        return 0
+    elif l >= 11 and l <= 18:
+        return 1
+    elif l >= 19 and l <= 34:
+        return 2
+    elif l >= 35 and l <= 66:
+        return 3
+    elif l >= 67 and l <= 130:
+        return 4
+    elif l >= 131 and l <= 257:
+        return 5
+    elif l == 258:
+        return 0
+
 # Given an integer distance between 1 and 32768, returns a tuple (code, extra bits)
 # according to the scheme outlined in DEFLATE docs
 def dist_code(dist):
@@ -167,6 +185,37 @@ def dist_code(dist):
         extrabits = dist - 24577
 
     return (code, extrabits)
+
+# Given a distance between 1 and 32768, returns the number of extra bits that follow the code for that distance
+def dist_code_num_extrabits(dist):
+    if dist >= 1 and dist <= 4:
+        return 0
+    elif dist >= 5 and dist <= 8:
+        return 1
+    elif dist >= 9 and dist <= 16:
+        return 2
+    elif dist >= 17 and dist <= 32:
+        return 3
+    elif dist >= 33 and dist <= 64:
+        return 4
+    elif dist >= 65 and dist <= 128:
+        return 5
+    elif dist >= 129 and dist <= 256:
+        return 6
+    elif dist >= 257 and dist <= 512:
+        return 7
+    elif dist >= 513 and dist <= 1024:
+        return 8
+    elif dist >= 1025 and dist <= 2048:
+        return 9
+    elif dist >= 2049 and dist <= 4096:
+        return 10
+    elif dist >= 4097 and dist <= 8192:
+        return 11
+    elif dist >= 8193 and dist <= 16384:
+        return 12
+    elif dist >= 16385 and dist <= 32768:
+        return 13
 
 # Given a list of code lengths for a canonical Huffman tree,
 # return the code length codes and associated extra bits- see deflate docs for length encoding scheme

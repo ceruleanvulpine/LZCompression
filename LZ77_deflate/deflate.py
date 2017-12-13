@@ -1,10 +1,11 @@
-# DEFLATE_NOT3.py
+# DEFLATE.py
 # Compresses files with a DEFLATE-ish algorithm. (Working towards compliance.)
 # Working to send data as length/offset pairs and literals, instead of offset/length/nextchar triples
 # NOTE: output NUMBER of length/literal/etc values before outputting huffman trees
 # NOTE: rework length/distance -> code to utilize the pattern ?
 
 import heapq as hq
+import bitstring as bs
 import sys
 import huff_functions as huff
 import deflate_fns as defl
@@ -15,57 +16,20 @@ import deflate_fns as defl
 to_write = 0
 bits_written = 0
 
-def writebits(n):
-    print(n)
-    global to_write
-    global bits_written
-    if n == 0:
-        bits_written = bits_written + 1
-    else:
+# Writes the number "data" as an n-bit binary integer
+def writebits(data, n):
 
-        power = 1
-        while power * 2 <= n:
-            power = power * 2
-        
-        while power >= 1:
-            if n - power >= 0:
-                bit = 1
-                n = n - power
-            else:
-                bit = 0
-                
-            power = power / 2
-
-            bit_flicker = bit << (7-bits_written)
-            to_write = to_write | bit_flicker
-            bits_written = bits_written + 1
-
-            if bits_written == 8:
-                output.write(to_write.to_bytes(1, byteorder = "big"))
-                to_write = 0
-                bits_written = 0
-            
-    if bits_written == 8:
-        output.write(to_write.to_bytes(1, byteorder = "big"))
-        to_write = 0
-        bits_written = 0
-
-# Write a number between 0 and 7 as a sequence of three bits
-# (Writebits will write, ex., 2 as 10 instead of 010)
-def write3bits(n):
-    
     global to_write
     global bits_written
 
-    power = 4
-    for i in range(0, 3):
-        
-        if (n - power >=0):
+    data_bits = bs.Bits(uint=data, length=n)
+
+    for i in range(0, n):
+        if(data_bits[n-1]):
             bit = 1
-            n = n - power
         else:
             bit = 0
-
+            
         bit_flicker = bit << (7-bits_written)
         to_write = to_write | bit_flicker
         bits_written = bits_written + 1
@@ -74,11 +38,8 @@ def write3bits(n):
             output.write(to_write.to_bytes(1, byteorder = "big"))
             to_write = 0
             bits_written = 0
-        
-        power = power / 2
             
-# -------------------------------------------------------
-
+# ------------------------------------------------------
 search_capacity = 32000
 search_size = 0
 
@@ -335,11 +296,11 @@ output = open(outputname, "wb")
 
 # Currently we are putting all data in one dynamically compressed block
 # So write BFINAL = 1 and BTYPE = 0b10 to the buffer, to signify that it is final and dynamically compressed
-writebits(6)
+writebits(6, 3)
 
 # Output code lengths for clc tree in this weird order
 for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
-    write3bits(clc_codelengths_list[i])
+    writebits(clc_codelengths_list[i], 3)
 
 # Create list of all clcs, ll and dist together
 codelengthcodes = ll_codelengthcodes + dist_codelengthcodes
@@ -350,22 +311,34 @@ print(all_extrabits)
 # Then output clcs using canonical huffman code
 extrabits_index = 0
 for code in codelengthcodes:
-    writebits(clc_canonical[code])
-    if code >= 16:
-        writebits(all_extrabits[extrabits_index])
+    codelength = clc_codelengths[code]
+    writebits(clc_canonical[code], codelength)
+    if code == 16:
+        writebits(all_extrabits[extrabits_index], 2)
+        extrabits_index = extrabits_index + 1
+    if code == 17:
+        writebits(all_extrabits[extrabits_index], 3)
+        extrabits_index = extrabits_index + 1
+    if code == 18:
+        writebits(all_extrabits[extrabits_index], 7)
         extrabits_index = extrabits_index + 1
 
+sys.exit(1)
+        
 # The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now, taken from lists lens_lits and distances and then encoded with the appropriate huffman code (extra bits added if necessary)
-
+# Note: Fixed extra bits but not huffman code
 num_tuples = 0 # Number of length/distance pairs sent
 for ll in lens_lits:
     writebits(ll_canonical[ll])
     if ll > 256:
+        cur_length = ll_canonical[ll]
+        cur_dist = distances[num_tuples]
+
         if len_extrabits[num_tuples] != -1:
-            writebits(len_extrabits[num_tuples])
+            writebits(len_extrabits[num_tuples], defl.length_code_num_extrabits(cur_length))
         writebits(dist_canonical[distances[num_tuples]])
         if dist_extrabits[num_tuples] != -1:
-            writebits(dist_extrabits[num_tuples])
+            writebits(dist_extrabits[num_tuples], defl.dist_code_num_extrabits(cur_dist))
         num_tuples = num_tuples + 1
         
 

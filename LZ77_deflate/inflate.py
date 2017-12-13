@@ -4,6 +4,7 @@
 
 import heapq as hq
 import sys
+import bitstring as bs
 import huff_functions as huff
 import deflate_fns as defl
 
@@ -77,15 +78,15 @@ for i in range(0, 19):
     clc_codelengths_list.append(clc_codelengths[i])
 print(clc_codelengths_list)
 
+
+
 # Construct canonical huffman code for code length codes
 clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
-# Reverse key/value pairs for decoding
-clc_canonical_dec = {}
-for key in clc_canonical:
-    clc_canonical_dec[clc_canonical[key]] = key
+# Construct dictionary w/1/0 strings
+clc_canonical_strings = huff.makecanonical_strings(range(0, 19), clc_codelengths_list, clc_canonical)
+print(clc_canonical_strings)
 
-print(clc_canonical)
-print(clc_canonical_dec)
+sys.exit(1)
     
 # Use this code to decode code lengths for length/literal and distance trees
 # NOTE: Build tree first? Is that faster?

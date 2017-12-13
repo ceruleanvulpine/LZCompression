@@ -78,10 +78,11 @@ for i in range(0, 19):
     clc_codelengths_list.append(clc_codelengths[i])
 print(clc_codelengths_list)
 
-
 # Construct canonical huffman code for code length codes
 clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
 print(clc_canonical)
+clc_canonical_tree = huff.makecanonicaltree(clc_canonical)
+print(clc_canonical_tree)
 
 sys.exit(1)
 

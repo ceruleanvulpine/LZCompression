@@ -27,6 +27,7 @@ def buildhufftree_full(freqs):
     return tree
 
 # Builds a huff table from a huffman tree
+# NOTE: Change to use bitstrings
 def buildhufftable(forest):
     huff_table = {}
     buildhufftable_rec(forest[0], "", huff_table)
@@ -110,3 +111,22 @@ def makecanonical(symbols, lengths):
 
     print(canon_codes_bitstrings)
     return canon_codes_bitstrings
+
+# Given a canonical huffman code, returns a tree reflecting that code
+# NOTE: Nodes are of the form (data, left child, right child) 
+def makecanonicaltree(canonical_code):
+    code_copy = canonical_code.copy()
+    root = [-1, None, None]
+    current_node = root
+    for symbol in code_copy:
+        for bit in canonical_code[symbol]:
+            if not bit:
+                if not current_node[1]:
+                    current_node[1] = [-1, None, None]
+                current_node = current_node[1]
+            else:
+                if not current_node[2]:
+                    current_node[2] = [-1, None, None]
+                current_node = current_node[2]
+        current_node[0] = symbol
+    return root

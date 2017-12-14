@@ -75,7 +75,7 @@ def length_code(l):
 
 
 # Given an integer length between 3 and 258, returns the number of extra bits that follow the code for that length
-def length_code_num_extrabits(l):
+def length_num_extrabits(l):
     if l <= 10:
         return 0
     elif l >= 11 and l <= 18:
@@ -90,6 +90,68 @@ def length_code_num_extrabits(l):
         return 5
     elif l == 258:
         return 0
+
+# Given a length code between 257 and 285, returns the number of extra bits that follow that code
+def length_code_num_extrabits(c):
+    if c < 265 or c == 285:
+        return 0
+    elif c >= 265 and c <= 268:
+        return 1
+    elif c >= 269 and c <= 272:
+        return 2
+    elif c >= 270 and c <= 276:
+        return 3
+    elif c >= 277 and c <= 280:
+        return 4
+    elif c >= 281 and c <= 284:
+        return 5
+
+# Given a length code and some extrabits, return the length encoded
+def length_decode(code, extrabits):
+    if code < 265:
+        return code - 254
+    elif code == 265:
+        return extrabits + 11
+    elif code == 266:
+        return extrabits + 13
+    elif code == 267:
+        return extrabits + 15
+    elif code == 268:
+        return extrabits + 17
+    elif code == 269:
+        return extrabits + 19
+    elif code == 270:
+        return extrabits + 23
+    elif code == 271:
+        return extrabits + 27
+    elif code == 272:
+        return extrabits + 31
+    elif code == 273:
+        return extrabits + 35
+    elif code == 274:
+        return extrabits + 43
+    elif code == 275:
+        return extrabits + 51
+    elif code == 276:
+        return extrabits + 59
+    elif code == 277:
+        return extrabits + 67
+    elif code == 278:
+        return extrabits + 83
+    elif code == 279:
+        return extrabits + 99
+    elif code == 280:
+        return extrabits + 115
+    elif code == 281:
+        return extrabits + 131
+    elif code == 282:
+        return extrabits + 163
+    elif code == 283:
+        return extrabits + 195
+    elif code == 284:
+        return extrabits + 227
+    elif code == 285:
+        return 258
 
 # Given an integer distance between 1 and 32768, returns a tuple (code, extra bits)
 # according to the scheme outlined in DEFLATE docs
@@ -187,7 +249,7 @@ def dist_code(dist):
     return (code, extrabits)
 
 # Given a distance between 1 and 32768, returns the number of extra bits that follow the code for that distance
-def dist_code_num_extrabits(dist):
+def dist_num_extrabits(dist):
     if dist >= 1 and dist <= 4:
         return 0
     elif dist >= 5 and dist <= 8:
@@ -216,6 +278,23 @@ def dist_code_num_extrabits(dist):
         return 12
     elif dist >= 16385 and dist <= 32768:
         return 13
+
+# Given a distance code, return the number of extra bits
+def dist_code_num_extrabits(code):
+    if code % 2 == 0:
+        return int((code/2) - 1)
+    else:
+        return int(((code-1)/2) - 1)
+    
+# Given a distance code and corresponding extra bits, return encoded distnace
+def dist_decode(code, extrabits):
+    if code >= 0 and code <= 3:
+        return code + 1
+    
+    elif code%2 == 0:
+        return int((2 ** code/2) + extrabits + 1)
+    else:
+        return int((2 ** ((code-1)/2)) * (3/2)) + extrabits + 1
 
 # Given a list of code lengths for a canonical Huffman tree,
 # return the code length codes and associated extra bits- see deflate docs for length encoding scheme

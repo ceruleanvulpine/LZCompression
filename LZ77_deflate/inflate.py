@@ -37,14 +37,6 @@ def readbits(n):
 
 # -----------------------------------------------------------
 
-search_capacity = 32000
-search_size = 0
-
-lookahead_capacity = 258
-lookahead_size = 0
-
-chars_sent = 0 # Position of next character to send, relative to the start of the file. (Gives a consistent frame of reference for offsets.)
-
 # Read arguments from command line to determine which file to decompress and where to 
 if len(sys.argv) == 3:
     inputname = sys.argv[1]
@@ -58,10 +50,8 @@ else:
 
 # Setup for lookahead and search buffers, and the dictionary "search" (which contains the locations of all the three-length strings encountered)
 text = open(inputname, "rb")
+output = open(outputname, "wb")
 cur_byte = int.from_bytes(text.read(1), byteorder = "big")
-search_buffer = bytearray(search_capacity)
-lookahead = bytearray(lookahead_capacity)
-search = {}
     
 # First read in btype (currently we are only sending one block & it is dynamically compressed, so it will always be a 3-bit 6)
 btype = readbits(3)
@@ -96,13 +86,10 @@ while not len(ll_codelengths_list) == 286:
     leafreached = False
     currentnode = clc_canonical_tree
     while not leafreached:
-        print("currentnode: " + str(currentnode))
         if (not currentnode[1]) and (not currentnode[2]):
             leafreached = True
-            print("reached leaf with data " + str(currentnode[0]))
         else:
             nextbit = bs.BitArray(uint = readbits(1), length = 1)
-            print("nextbit: " + str(nextbit))
             if not nextbit[0]:
                 currentnode = currentnode[1]
             else:
@@ -193,3 +180,71 @@ ll_canonical_tree = huff.makecanonicaltree(ll_canonical)
 # Construct canonical huffman code and decoding tree for distance codes
 dist_canonical = huff.makecanonical(range(0, 30), dist_codelengths_list)
 dist_canonical_tree = huff.makecanonicaltree(dist_canonical)
+
+# Finally, DECODE DATA
+# NOTE: Adapt this to multi-block structure
+
+lls = []
+distances = []
+for j in range(0, 10):
+    print(lls)
+    print(distances)
+    # Decode a length/literal value
+    leafreached = False
+    currentnode = ll_canonical_tree
+    while not leafreached:
+        if (not currentnode[1]) and (not currentnode[2]):
+            leafreached = True
+        else:
+            nextbit = bs.BitArray(uint = readbits(1), length = 1)
+            if not nextbit[0]:
+                currentnode = currentnode[1]
+            else:
+                currentnode = currentnode[2]
+
+    ll = currentnode[0]
+    print(ll)
+
+    if ll == 256:
+        break # End of block character
+        
+    # If value < 256, it's a literal; otherwise length
+    if ll < 256:
+        lls.append(ll)
+    else:
+        num_extrabits = defl.length_code_num_extrabits(ll)
+        if num_extrabits != 0:
+            extrabits = readbits(num_extrabits)
+        else:
+            extrabits = -1
+        length = defl.length_decode(ll, extrabits)
+        lls.append(length)
+        print(extrabits)
+
+        # Decode a distance value 
+        leafreached = False
+        currentnode = dist_canonical_tree
+        while not leafreached:
+            if (not currentnode[1]) and (not currentnode[2]):
+                leafreached = True
+            else:
+                nextbit = bs.BitArray(uint = readbits(1), length = 1)
+                if not nextbit[0]:
+                    currentnode = currentnode[1]
+                else:
+                    currentnode = currentnode[2]
+
+        dist_code = currentnode[0]
+        num_extrabits = defl.dist_code_num_extrabits(dist_code)
+        if num_extrabits != 0:
+            extrabits = readbits(num_extrabits)
+        else:
+            extrabits = -1
+        dist = defl.dist_decode(dist_code, extrabits)
+        distances.append(dist)
+        print(extrabits)
+
+print(lls)
+print(distances)
+        
+        

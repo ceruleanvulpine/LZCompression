@@ -353,11 +353,10 @@ for ll in lens_lits:
         cur_dist = distances[num_tuples]
 
         if len_extrabits[num_tuples] != -1:
-            writebits(len_extrabits[num_tuples], defl.length_code_num_extrabits(cur_length))
+            writebits(len_extrabits[num_tuples], defl.length_num_extrabits(cur_length))
         writebitstring(dist_canonical[distances[num_tuples]])
         if dist_extrabits[num_tuples] != -1:
-            writebits(dist_extrabits[num_tuples], defl.dist_code_num_extrabits(cur_dist))
+            writebits(dist_extrabits[num_tuples], defl.dist_num_extrabits(cur_dist))
         num_tuples = num_tuples + 1
-        
 
 output.close()

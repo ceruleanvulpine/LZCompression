@@ -18,7 +18,7 @@ bits_written = 0
 
 # Writes the number "data" as an n-bit binary integer
 def writebits(data, n):
-
+    
     global to_write
     global bits_written
 
@@ -94,6 +94,9 @@ len_extrabits = []
 distances = []
 dist_extrabits = []
 
+unencoded_lenlits = []
+unencoded_distances = []
+
 # Fill lookahead buffer with first [lookahead_capacity] chars
 next_char = text.read(1)
 while (lookahead_size != lookahead_capacity) and next_char:
@@ -123,6 +126,7 @@ while not lookahead_size <= 0:
             
             # Send next char as literal
             lens_lits.append(lookahead[0])
+            unencoded_lenlits.append(lookahead[0])
             shift = 1
             
             # String has not been encountered previously, so construct an entry in search with the index of this match
@@ -171,9 +175,11 @@ while not lookahead_size <= 0:
             dist_code = defl.dist_code(offset)
             distances.append(dist_code[0])
             dist_extrabits.append(dist_code[1])
+            unencoded_distances.append(offset)
             length_code = defl.length_code(length)
             lens_lits.append(length_code[0])
             len_extrabits.append(length_code[1])
+            unencoded_lenlits.append(length)
             shift = length
 
             # Add this index to the entry for next_string
@@ -227,13 +233,17 @@ while not lookahead_size <= 0:
     chars_sent = chars_sent + shift
 
 # Write an end-of-block character (there will only be one of these right now since it's all in one block)
-lens_lits.append(256)
+length_code = defl.length_code(256)
+lens_lits.append(length_code[0])
+len_extrabits.append(length_code[1])
+unencoded_lenlits.append(256)
 
 print(str(lens_lits))
 print(str(len_extrabits))
 print(str(distances))
 print(str(dist_extrabits))
-
+print(str(unencoded_lenlits))
+print(str(unencoded_distances))
 
 # Constructing huffman tree for lengths and literals
 # First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 represent lengths (some represent a range of lengths)
@@ -340,19 +350,19 @@ for code in codelengthcodes:
         extrabits_index = extrabits_index + 1
         
 # The decompressor can now construct the canonical huffman codes for code length codes, then use that to construct the canonical huffman codes for lengths/literals and distances. So data can actually be output now, taken from lists lens_lits and distances and then encoded with the appropriate huffman code (extra bits added if necessary)
-# Note: Fixed extra bits but not huffman code
 num_tuples = 0 # Number of length/distance pairs sent
 for ll in lens_lits:
     writebitstring(ll_canonical[ll])
     if ll > 256:
-        cur_length = ll_canonical[ll]
-        cur_dist = distances[num_tuples]
-
         if len_extrabits[num_tuples] != -1:
-            writebits(len_extrabits[num_tuples], defl.length_num_extrabits(cur_length))
-        writebitstring(dist_canonical[distances[num_tuples]])
-        if dist_extrabits[num_tuples] != -1:
-            writebits(dist_extrabits[num_tuples], defl.dist_num_extrabits(cur_dist))
+            writebits(len_extrabits[num_tuples], defl.length_code_num_extrabits(ll))
+        if not num_tuples == len(distances):
+            writebitstring(dist_canonical[distances[num_tuples]])
+            if dist_extrabits[num_tuples] != -1:
+                cur_dist = distances[num_tuples]
+                print("Current distance code: " + str(cur_dist))
+                print("Writing the extra bits " + str(dist_extrabits[num_tuples]) + " in " + str(defl.dist_code_num_extrabits(cur_dist)) + " bits")
+                writebits(dist_extrabits[num_tuples], defl.dist_code_num_extrabits(cur_dist))
         num_tuples = num_tuples + 1
 
 output.close()

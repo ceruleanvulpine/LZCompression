@@ -186,7 +186,7 @@ dist_canonical_tree = huff.makecanonicaltree(dist_canonical)
 
 lls = []
 distances = []
-for j in range(0, 10):
+while True:
     
     print(lls)
     print(distances)
@@ -206,9 +206,6 @@ for j in range(0, 10):
 
     ll = currentnode[0]
     print("Literal/coded length: " + str(ll))
-
-    if ll == 256:
-        break # End of block character
         
     # If value < 256, it's a literal; otherwise length
     if ll < 256:
@@ -222,7 +219,9 @@ for j in range(0, 10):
         length = defl.length_decode(ll, extrabits)
         lls.append(length)
         print("Extra bits: " + str(extrabits))
-        print("Decoded length: " + str(length)) 
+        print("Decoded length: " + str(length))
+        if length == 256:
+            break
 
         # Decode a distance value 
         leafreached = False

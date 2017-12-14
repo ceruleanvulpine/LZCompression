@@ -94,9 +94,6 @@ len_extrabits = []
 distances = []
 dist_extrabits = []
 
-unencoded_lenlits = []
-unencoded_distances = []
-
 # Fill lookahead buffer with first [lookahead_capacity] chars
 next_char = text.read(1)
 while (lookahead_size != lookahead_capacity) and next_char:
@@ -126,7 +123,6 @@ while not lookahead_size <= 0:
             
             # Send next char as literal
             lens_lits.append(lookahead[0])
-            unencoded_lenlits.append(lookahead[0])
             shift = 1
             
             # String has not been encountered previously, so construct an entry in search with the index of this match
@@ -175,17 +171,15 @@ while not lookahead_size <= 0:
             dist_code = defl.dist_code(offset)
             distances.append(dist_code[0])
             dist_extrabits.append(dist_code[1])
-            unencoded_distances.append(offset)
             length_code = defl.length_code(length)
             lens_lits.append(length_code[0])
             len_extrabits.append(length_code[1])
-            unencoded_lenlits.append(length)
             shift = length
 
             # Add this index to the entry for next_string
             # (At the beginning, so search will prioritize more recent matches)
             print("Adding " + next_three + " to search at index " + str(chars_sent))
-            search[next_three].insert(0, chars_sent)     
+            search[next_three].insert(0, chars_sent)
 
     else:
         # Less than three bytes left, so send as literal
@@ -236,14 +230,11 @@ while not lookahead_size <= 0:
 length_code = defl.length_code(256)
 lens_lits.append(length_code[0])
 len_extrabits.append(length_code[1])
-unencoded_lenlits.append(256)
 
 print(str(lens_lits))
 print(str(len_extrabits))
 print(str(distances))
 print(str(dist_extrabits))
-print(str(unencoded_lenlits))
-print(str(unencoded_distances))
 
 # Constructing huffman tree for lengths and literals
 # First count frequencies of codes: 0-255 are literals, 256 is end of block, 257-285 represent lengths (some represent a range of lengths)
@@ -355,14 +346,16 @@ for ll in lens_lits:
     writebitstring(ll_canonical[ll])
     if ll > 256:
         if len_extrabits[num_tuples] != -1:
+            print(len_extrabits[num_tuples])
             writebits(len_extrabits[num_tuples], defl.length_code_num_extrabits(ll))
+        # If this is not the last length (the EOB code) then also print distance
         if not num_tuples == len(distances):
             writebitstring(dist_canonical[distances[num_tuples]])
             if dist_extrabits[num_tuples] != -1:
-                cur_dist = distances[num_tuples]
-                print("Current distance code: " + str(cur_dist))
-                print("Writing the extra bits " + str(dist_extrabits[num_tuples]) + " in " + str(defl.dist_code_num_extrabits(cur_dist)) + " bits")
-                writebits(dist_extrabits[num_tuples], defl.dist_code_num_extrabits(cur_dist))
+                cur_dist_code = distances[num_tuples]
+                writebits(dist_extrabits[num_tuples], defl.dist_code_num_extrabits(cur_dist_code))
         num_tuples = num_tuples + 1
 
+
+output.write(to_write.to_bytes(1, byteorder = "big"))
 output.close()

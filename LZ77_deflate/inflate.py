@@ -212,6 +212,7 @@ while True:
         lls.append(ll)
     else:
         num_extrabits = defl.length_code_num_extrabits(ll)
+        print("Num extra bits for length: " + str(num_extrabits))
         if num_extrabits != 0:
             extrabits = readbits(num_extrabits)
         else:

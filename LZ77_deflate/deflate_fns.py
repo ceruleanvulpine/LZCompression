@@ -158,7 +158,6 @@ def length_decode(code, extrabits):
 def dist_code(dist):
     code = -1
     extrabits = -1
-
     if dist == 1:
         code = 0
     elif dist == 2:
@@ -290,9 +289,9 @@ def dist_code_num_extrabits(code):
 def dist_decode(code, extrabits):
     if code >= 0 and code <= 3:
         return code + 1
-    
+
     elif code%2 == 0:
-        return int((2 ** code/2) + extrabits + 1)
+        return int((2 ** (code/2)) + extrabits + 1)
     else:
         return int((2 ** ((code-1)/2)) * (3/2)) + extrabits + 1
 

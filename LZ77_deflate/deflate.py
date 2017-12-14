@@ -58,7 +58,6 @@ def writebitstring(data):
             to_write = 0
             bits_written = 0
     
-            
 # ------------------------------------------------------
 search_capacity = 32000
 search_size = 0
@@ -102,11 +101,10 @@ while (lookahead_size != lookahead_capacity) and next_char:
     lookahead_size = lookahead_size + 1
     next_char = text.read(1)
 
-print(lookahead)
-
 # Main LZ77 loop
 while not lookahead_size <= 0:
 
+    print(lookahead)
     print("search: " + str(search))
     
     offset = 0
@@ -121,7 +119,7 @@ while not lookahead_size <= 0:
 
         if not next_three in search:
 
-            print("Sending as literal")
+            print("Sending" + str(lookahead[0]) + "as literal")
             
             # Send next char as literal
             lens_lits.append(lookahead[0])
@@ -134,8 +132,6 @@ while not lookahead_size <= 0:
         else:
 
             print("Attempting to send " + next_three + " as match")
-            # print(str(search_buffer))
-            print(str(lookahead))
 
             # Look through all matches for the longest recent one
             # NOTE: Take care of case where only matches are >32000 back
@@ -256,8 +252,8 @@ ll_tree = huff.buildhufftree_full(ll_frequencies)
 ll_codelengths = huff.getcodelengths(ll_tree)
 ll_codelengths_list = huff.lengthslist(range(0, 286), ll_codelengths)
 ll_canonical = huff.makecanonical(range(0, 286), ll_codelengths_list)
-print(ll_codelengths_list)
-print("LL_CANONICAL: " + str(ll_canonical))
+#print(ll_codelengths_list)
+#print("LL_CANONICAL: " + str(ll_canonical))
 
 # Construct list of code length codes for canonical huffman tree for lengths/literals
 ll_codes_plus_extrabits = defl.getcodelengthcodes(ll_codelengths_list)
@@ -281,7 +277,7 @@ dist_tree = huff.buildhufftree_full(dist_frequencies)
 dist_codelengths = huff.getcodelengths(dist_tree)
 dist_codelengths_list = huff.lengthslist(range(0, 30), dist_codelengths)
 dist_canonical = huff.makecanonical(range(0, 30), dist_codelengths_list)
-print(dist_codelengths_list)
+#print(dist_codelengths_list)
 
 # Construct list of code length codes for canonical huffman tree for distances
 dist_codes_plus_extrabits = defl.getcodelengthcodes(dist_codelengths_list)
@@ -308,9 +304,9 @@ clc_tree = huff.buildhufftree_full(clc_frequencies)
 # Get ordered list of code lengths to create canonical huffman code 
 clc_codelengths = huff.getcodelengths(clc_tree)
 clc_codelengths_list = huff.lengthslist(range(0, 19), clc_codelengths)
-print("clc_codelengths_list: " + str(clc_codelengths_list))
+#print("clc_codelengths_list: " + str(clc_codelengths_list))
 clc_canonical = huff.makecanonical(range(0, 19), clc_codelengths_list)
-print(clc_canonical)
+#print(clc_canonical)
 
 # Open output stream; towrite is a one-byte buffer, bits_written keeps track of how much of it is full
 output = open(outputname, "wb")
@@ -326,8 +322,8 @@ for i in [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]:
 # Create list of all clcs, ll and dist together
 codelengthcodes = ll_codelengthcodes + dist_codelengthcodes
 all_extrabits = ll_repeat_extrabits + dist_repeat_extrabits
-print(codelengthcodes)
-print(all_extrabits)
+#print(codelengthcodes)
+#print(all_extrabits)
 
 # Then output clcs using canonical huffman code
 extrabits_index = 0
